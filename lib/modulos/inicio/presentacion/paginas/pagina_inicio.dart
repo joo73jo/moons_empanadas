@@ -4,6 +4,7 @@ import '../../../../nucleo/tema/colores_app.dart';
 import '../../../autenticacion/dominio/modelos/usuario.dart';
 import '../../../autenticacion/presentacion/paginas/pagina_login.dart';
 import '../../../caja/presentacion/paginas/pagina_caja.dart';
+import '../../../dashboard/presentacion/paginas/pagina_dashboard_dueno.dart';
 import '../../../inventario/presentacion/paginas/pagina_inventario.dart';
 import '../../../produccion/presentacion/paginas/pagina_produccion.dart';
 import '../../../recetas/presentacion/paginas/pagina_recetas.dart';
@@ -33,49 +34,6 @@ class PaginaInicio extends StatelessWidget {
 
   List<_ModuloInicio> _obtenerModulosPorRol() {
     switch (usuario.rol) {
-      case 'dueno':
-        return const [
-          _ModuloInicio(
-            titulo: 'Ventas',
-            subtitulo: 'Registrar y consultar ventas',
-            icono: Icons.point_of_sale_rounded,
-          ),
-          _ModuloInicio(
-            titulo: 'Caja',
-            subtitulo: 'Apertura, cierre y cuadre',
-            icono: Icons.account_balance_wallet_rounded,
-          ),
-          _ModuloInicio(
-            titulo: 'Historial ventas',
-            subtitulo: 'Consultar ventas recientes',
-            icono: Icons.receipt_long_rounded,
-          ),
-          _ModuloInicio(
-            titulo: 'Inventario',
-            subtitulo: 'Ingredientes y stock real',
-            icono: Icons.inventory_2_rounded,
-          ),
-          _ModuloInicio(
-            titulo: 'Recetas',
-            subtitulo: 'Ingredientes por producto',
-            icono: Icons.menu_book_rounded,
-          ),
-          _ModuloInicio(
-            titulo: 'Producción',
-            subtitulo: 'Consumir ingredientes y sumar stock',
-            icono: Icons.bakery_dining_rounded,
-          ),
-          _ModuloInicio(
-            titulo: 'Reportes',
-            subtitulo: 'Resumen y métricas',
-            icono: Icons.bar_chart_rounded,
-          ),
-          _ModuloInicio(
-            titulo: 'Usuarios',
-            subtitulo: 'Control de accesos',
-            icono: Icons.group_rounded,
-          ),
-        ];
       case 'empleado':
         return const [
           _ModuloInicio(
@@ -196,24 +154,14 @@ class PaginaInicio extends StatelessWidget {
       );
       return;
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Módulo "${modulo.titulo}" en construcción.',
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        backgroundColor: ColoresApp.principal,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (usuario.rol == 'dueno') {
+      return PaginaDashboardDueno(usuario: usuario);
+    }
+
     final nombreRol = _obtenerNombreRol(usuario.rol);
     final modulos = _obtenerModulosPorRol();
 
@@ -269,13 +217,6 @@ class PaginaInicio extends StatelessWidget {
                       border: Border.all(
                         color: Colors.white.withOpacity(0.06),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.25),
-                          blurRadius: 24,
-                          offset: const Offset(0, 12),
-                        ),
-                      ],
                     ),
                     child: Row(
                       children: [
@@ -285,13 +226,6 @@ class PaginaInicio extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.black,
                             borderRadius: BorderRadius.circular(22),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ColoresApp.principal.withOpacity(0.15),
-                                blurRadius: 18,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
                           ),
                           child: const Icon(
                             Icons.person_rounded,
@@ -318,25 +252,6 @@ class PaginaInicio extends StatelessWidget {
                                 style: const TextStyle(
                                   color: ColoresApp.textoSecundario,
                                   fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: ColoresApp.fondoSecundario,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  'Usuario: ${usuario.usuario}',
-                                  style: const TextStyle(
-                                    color: ColoresApp.textoPrincipal,
-                                    fontWeight: FontWeight.w600,
-                                  ),
                                 ),
                               ),
                             ],
@@ -346,23 +261,6 @@ class PaginaInicio extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 28),
-                  const Text(
-                    'Módulos disponibles',
-                    style: TextStyle(
-                      color: ColoresApp.textoPrincipal,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Accesos visibles según el rol del usuario',
-                    style: TextStyle(
-                      color: ColoresApp.textoSecundario,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -413,13 +311,6 @@ class _TarjetaModulo extends StatelessWidget {
           border: Border.all(
             color: Colors.white.withOpacity(0.06),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.22),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(18),

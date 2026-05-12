@@ -5,119 +5,100 @@ import 'ventas_modelos.dart';
 class ProductosSupabase {
   static Future<List<ProductoVenta>> obtenerProductos() async {
     try {
-      final List<dynamic> respuesta = await SupabaseCliente.cliente
+      final respuesta = await SupabaseCliente.cliente
           .from('productos')
-          .select(
-            'id, nombre, categoria, precio, seccion, requiere_sabores, cantidad_sabores, controla_stock, activo',
-          )
+          .select()
           .eq('activo', true)
           .order('id');
 
-      return respuesta.map<ProductoVenta>((item) {
-        final mapa = Map<String, dynamic>.from(item as Map);
+      final lista = (respuesta as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
 
+      return lista.map<ProductoVenta>((mapa) {
         return ProductoVenta(
-          id: mapa['id'] as int,
+          id: (mapa['id'] as num).toInt(),
           nombre: (mapa['nombre'] ?? '').toString(),
           categoria: (mapa['categoria'] ?? '').toString(),
           precio: (mapa['precio'] as num).toDouble(),
           seccion: _mapearSeccion((mapa['seccion'] ?? '').toString()),
           requiereSabores: mapa['requiere_sabores'] as bool? ?? false,
-          cantidadSabores: mapa['cantidad_sabores'] as int? ?? 0,
+          cantidadSabores: (mapa['cantidad_sabores'] as num?)?.toInt() ?? 0,
           controlaStock: mapa['controla_stock'] as bool? ?? true,
         );
       }).toList();
     } on PostgrestException catch (e) {
-      throw Exception('Postgrest: ${e.message}');
+      throw Exception('Supabase productos: ${e.message}');
     } catch (e) {
-      throw Exception('General: $e');
+      throw Exception('Error productos: $e');
     }
   }
 
   static Future<ProductoVenta> crearProducto(ProductoVenta producto) async {
-    try {
-      final respuesta = await SupabaseCliente.cliente
-          .from('productos')
-          .insert({
-            'nombre': producto.nombre,
-            'categoria': producto.categoria,
-            'precio': producto.precio,
-            'seccion': _mapearSeccionTexto(producto.seccion),
-            'requiere_sabores': producto.requiereSabores,
-            'cantidad_sabores': producto.cantidadSabores,
-            'controla_stock': producto.controlaStock,
-            'activo': true,
-          })
-          .select(
-            'id, nombre, categoria, precio, seccion, requiere_sabores, cantidad_sabores, controla_stock',
-          )
-          .single();
+    final respuesta = await SupabaseCliente.cliente
+        .from('productos')
+        .insert({
+          'nombre': producto.nombre,
+          'categoria': producto.categoria,
+          'precio': producto.precio,
+          'seccion': _mapearSeccionTexto(producto.seccion),
+          'requiere_sabores': producto.requiereSabores,
+          'cantidad_sabores': producto.cantidadSabores,
+          'controla_stock': producto.controlaStock,
+          'activo': true,
+        })
+        .select()
+        .single();
 
-      final mapa = Map<String, dynamic>.from(respuesta);
+    final mapa = Map<String, dynamic>.from(respuesta);
 
-      return ProductoVenta(
-        id: mapa['id'] as int,
-        nombre: (mapa['nombre'] ?? '').toString(),
-        categoria: (mapa['categoria'] ?? '').toString(),
-        precio: (mapa['precio'] as num).toDouble(),
-        seccion: _mapearSeccion((mapa['seccion'] ?? '').toString()),
-        requiereSabores: mapa['requiere_sabores'] as bool? ?? false,
-        cantidadSabores: mapa['cantidad_sabores'] as int? ?? 0,
-        controlaStock: mapa['controla_stock'] as bool? ?? true,
-      );
-    } on PostgrestException catch (e) {
-      throw Exception('Postgrest: ${e.message}');
-    } catch (e) {
-      throw Exception('General: $e');
-    }
+    return ProductoVenta(
+      id: (mapa['id'] as num).toInt(),
+      nombre: (mapa['nombre'] ?? '').toString(),
+      categoria: (mapa['categoria'] ?? '').toString(),
+      precio: (mapa['precio'] as num).toDouble(),
+      seccion: _mapearSeccion((mapa['seccion'] ?? '').toString()),
+      requiereSabores: mapa['requiere_sabores'] as bool? ?? false,
+      cantidadSabores: (mapa['cantidad_sabores'] as num?)?.toInt() ?? 0,
+      controlaStock: mapa['controla_stock'] as bool? ?? true,
+    );
   }
 
   static Future<ProductoVenta> actualizarProducto(ProductoVenta producto) async {
-    try {
-      final respuesta = await SupabaseCliente.cliente
-          .from('productos')
-          .update({
-            'nombre': producto.nombre,
-            'categoria': producto.categoria,
-            'precio': producto.precio,
-            'seccion': _mapearSeccionTexto(producto.seccion),
-            'requiere_sabores': producto.requiereSabores,
-            'cantidad_sabores': producto.cantidadSabores,
-            'controla_stock': producto.controlaStock,
-          })
-          .eq('id', producto.id)
-          .select(
-            'id, nombre, categoria, precio, seccion, requiere_sabores, cantidad_sabores, controla_stock',
-          )
-          .single();
+    final respuesta = await SupabaseCliente.cliente
+        .from('productos')
+        .update({
+          'nombre': producto.nombre,
+          'categoria': producto.categoria,
+          'precio': producto.precio,
+          'seccion': _mapearSeccionTexto(producto.seccion),
+          'requiere_sabores': producto.requiereSabores,
+          'cantidad_sabores': producto.cantidadSabores,
+          'controla_stock': producto.controlaStock,
+        })
+        .eq('id', producto.id)
+        .select()
+        .single();
 
-      final mapa = Map<String, dynamic>.from(respuesta);
+    final mapa = Map<String, dynamic>.from(respuesta);
 
-      return ProductoVenta(
-        id: mapa['id'] as int,
-        nombre: (mapa['nombre'] ?? '').toString(),
-        categoria: (mapa['categoria'] ?? '').toString(),
-        precio: (mapa['precio'] as num).toDouble(),
-        seccion: _mapearSeccion((mapa['seccion'] ?? '').toString()),
-        requiereSabores: mapa['requiere_sabores'] as bool? ?? false,
-        cantidadSabores: mapa['cantidad_sabores'] as int? ?? 0,
-        controlaStock: mapa['controla_stock'] as bool? ?? true,
-      );
-    } on PostgrestException catch (e) {
-      throw Exception('Postgrest: ${e.message}');
-    } catch (e) {
-      throw Exception('General: $e');
-    }
+    return ProductoVenta(
+      id: (mapa['id'] as num).toInt(),
+      nombre: (mapa['nombre'] ?? '').toString(),
+      categoria: (mapa['categoria'] ?? '').toString(),
+      precio: (mapa['precio'] as num).toDouble(),
+      seccion: _mapearSeccion((mapa['seccion'] ?? '').toString()),
+      requiereSabores: mapa['requiere_sabores'] as bool? ?? false,
+      cantidadSabores: (mapa['cantidad_sabores'] as num?)?.toInt() ?? 0,
+      controlaStock: mapa['controla_stock'] as bool? ?? true,
+    );
   }
 
   static Future<void> eliminarProducto(int id) async {
-    try {
-      await SupabaseCliente.cliente.from('productos').delete().eq('id', id);
-    } on PostgrestException catch (e) {
-      throw Exception('Postgrest: ${e.message}');
-    } catch (e) {
-      throw Exception('General: $e');
-    }
+    await SupabaseCliente.cliente
+        .from('productos')
+        .update({'activo': false})
+        .eq('id', id);
   }
 
   static SeccionVenta _mapearSeccion(String valor) {

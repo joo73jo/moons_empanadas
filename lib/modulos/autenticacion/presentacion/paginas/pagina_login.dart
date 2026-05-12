@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../../nucleo/tema/colores_app.dart';
 import '../../../inicio/presentacion/paginas/pagina_inicio.dart';
-import '../../datos/usuarios_quemados.dart';
+import '../../datos/usuarios_supabase.dart';
 import '../../dominio/modelos/usuario.dart';
 
 class PaginaLogin extends StatefulWidget {
@@ -55,15 +55,6 @@ class _PaginaLoginState extends State<PaginaLogin>
     );
   }
 
-  Usuario? _buscarUsuario(String usuarioIngresado) {
-    for (final usuario in UsuariosQuemados.lista) {
-      if (usuario.usuario.toLowerCase() == usuarioIngresado.toLowerCase()) {
-        return usuario;
-      }
-    }
-    return null;
-  }
-
   Future<void> _iniciarSesion() async {
     if (_cargando) return;
 
@@ -79,45 +70,48 @@ class _PaginaLoginState extends State<PaginaLogin>
       _cargando = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final Usuario? usuario = await UsuariosSupabase.iniciarSesion(
+        usuarioIngresado: usuarioIngresado,
+        claveIngresada: claveIngresada,
+      );
 
-    final usuario = _buscarUsuario(usuarioIngresado);
+      if (!mounted) return;
 
-    if (!mounted) return;
+      if (usuario == null) {
+        setState(() {
+          _cargando = false;
+        });
+        _mostrarMensaje('Usuario no encontrado.');
+        return;
+      }
 
-    if (usuario == null) {
+      if (!usuario.activo) {
+        setState(() {
+          _cargando = false;
+        });
+        _mostrarMensaje('Este usuario está inactivo.');
+        return;
+      }
+
       setState(() {
         _cargando = false;
       });
-      _mostrarMensaje('Usuario no encontrado.');
-      return;
-    }
 
-    if (!usuario.activo) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PaginaInicio(usuario: usuario),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _cargando = false;
       });
-      _mostrarMensaje('Este usuario está inactivo.');
-      return;
+
+      _mostrarMensaje(e.toString().replaceFirst('Exception: ', ''));
     }
-
-    if (usuario.clave != claveIngresada) {
-      setState(() {
-        _cargando = false;
-      });
-      _mostrarMensaje('Contraseña incorrecta.');
-      return;
-    }
-
-    setState(() {
-      _cargando = false;
-    });
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => PaginaInicio(usuario: usuario),
-      ),
-    );
   }
 
   @override

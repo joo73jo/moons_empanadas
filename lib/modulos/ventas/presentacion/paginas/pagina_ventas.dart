@@ -40,18 +40,19 @@ class _PaginaVentasState extends State<PaginaVentas> {
   }
 
   Future<void> _cargarProductos() async {
-    try {
-      final productos = await ProductosSupabase.obtenerProductos();
+  try {
+    final productos = await ProductosSupabase.obtenerProductos();
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      setState(() {
-        _productos = productos;
-      });
-    } catch (e) {
-      _mostrarMensaje('Error cargando productos desde Supabase.');
-    }
+    setState(() {
+      _productos = productos;
+    });
+  } catch (e) {
+    debugPrint('ERROR PRODUCTOS SUPABASE: $e');
+    _mostrarMensaje('Error cargando productos desde Supabase: $e');
   }
+}
 
   List<ProductoVenta> get _productosFiltrados {
     return _productos.where((producto) {
