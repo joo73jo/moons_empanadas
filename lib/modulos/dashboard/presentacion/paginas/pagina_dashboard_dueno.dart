@@ -10,6 +10,7 @@ import '../../../produccion/presentacion/paginas/pagina_produccion.dart';
 import '../../../recetas/presentacion/paginas/pagina_recetas.dart';
 import '../../../reportes/presentacion/paginas/pagina_historial_ventas.dart';
 import '../../../ventas/presentacion/paginas/pagina_ventas.dart';
+import '../../../reportes/presentacion/paginas/pagina_reportes.dart';
 
 class PaginaDashboardDueno extends StatefulWidget {
   final Usuario usuario;
@@ -301,6 +302,15 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
                                           mainAxisSpacing: 14,
                                           childAspectRatio: 1.3,
                                           children: [
+                                            _tarjetaAcceso(
+  titulo: 'Reportes',
+  subtitulo: 'Centro analítico',
+  icono: Icons.bar_chart_rounded,
+  onTap: () => _abrir(
+    context,
+    const PaginaReportes(),
+  ),
+),
                                             _tarjetaAcceso(
                                               titulo: 'Ventas',
                                               subtitulo: 'Cobrar y registrar',

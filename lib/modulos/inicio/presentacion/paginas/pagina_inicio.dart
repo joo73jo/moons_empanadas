@@ -10,6 +10,7 @@ import '../../../produccion/presentacion/paginas/pagina_produccion.dart';
 import '../../../recetas/presentacion/paginas/pagina_recetas.dart';
 import '../../../reportes/presentacion/paginas/pagina_historial_ventas.dart';
 import '../../../ventas/presentacion/paginas/pagina_ventas.dart';
+import '../../../reportes/presentacion/paginas/pagina_reportes.dart';
 
 class PaginaInicio extends StatelessWidget {
   final Usuario usuario;
@@ -154,6 +155,14 @@ class PaginaInicio extends StatelessWidget {
       );
       return;
     }
+    if (modulo.titulo == 'Reportes') {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => const PaginaReportes(),
+    ),
+  );
+  return;
+}
   }
 
   @override
