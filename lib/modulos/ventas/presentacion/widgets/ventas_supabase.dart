@@ -30,19 +30,26 @@ class VentasSupabase {
 
     await _validarStockAntesDeGuardar(items);
 
+    final metodoVenta = resultadoCobro.esPagoMixto
+        ? 'mixto'
+        : _mapearMetodoPago(resultadoCobro.metodoPago);
+
     final ventaInsertada = await cliente
         .from('ventas')
         .insert({
           'caja_id': cajaId,
           'usuario_id': usuarioId,
-          'metodo_pago': _mapearMetodoPago(resultadoCobro.metodoPago),
-          'banco': resultadoCobro.banco,
-          'datofono': resultadoCobro.datofono,
+          'metodo_pago': metodoVenta,
+          'banco': resultadoCobro.esPagoMixto ? null : resultadoCobro.banco,
+          'datofono':
+              resultadoCobro.esPagoMixto ? null : resultadoCobro.datofono,
           'subtotal': subtotal,
           'total': resultadoCobro.total,
-          'valor_recibido': null,
-          'cambio': 0,
-          'observacion': null,
+          'valor_recibido': resultadoCobro.valorRecibido,
+          'cambio': resultadoCobro.cambio,
+          'observacion': resultadoCobro.esPagoMixto
+              ? _crearObservacionPagoMixto(resultadoCobro.pagos)
+              : null,
           'estado': 'pagada',
         })
         .select('id')
@@ -65,6 +72,20 @@ class VentasSupabase {
 
     await cliente.from('detalle_venta').insert(detalles);
 
+    final pagosInsert = resultadoCobro.pagos.map((pago) {
+      return {
+        'venta_id': ventaId,
+        'metodo_pago': _mapearMetodoPago(pago.metodoPago),
+        'monto': pago.monto,
+        'banco': pago.banco,
+        'datofono': pago.datofono,
+        'valor_recibido': pago.valorRecibido,
+        'cambio': pago.cambio,
+      };
+    }).toList();
+
+    await cliente.from('pagos_venta').insert(pagosInsert);
+
     await _descontarStockPorVenta(
       items: items,
       usuarioId: usuarioId,
@@ -73,9 +94,18 @@ class VentasSupabase {
 
     await _actualizarTotalesCaja(
       cajaId: cajaId,
-      metodoPago: resultadoCobro.metodoPago,
-      total: resultadoCobro.total,
+      pagos: resultadoCobro.pagos,
+      totalVenta: resultadoCobro.total,
     );
+  }
+
+  static String _crearObservacionPagoMixto(List<PagoCobro> pagos) {
+    final partes = pagos.map((pago) {
+      final metodo = _mapearMetodoPago(pago.metodoPago);
+      return '$metodo \$${pago.monto.toStringAsFixed(2)}';
+    }).join(' + ');
+
+    return 'Pago dividido: $partes';
   }
 
   static Future<void> _validarStockAntesDeGuardar(
@@ -89,7 +119,8 @@ class VentasSupabase {
     for (final item in items) {
       if (item.producto.controlaStock) {
         descuentosDirectos[item.producto.id] =
-            (descuentosDirectos[item.producto.id] ?? 0) + item.cantidad.toDouble();
+            (descuentosDirectos[item.producto.id] ?? 0) +
+                item.cantidad.toDouble();
       }
 
       if (item.sabores.isNotEmpty) {
@@ -205,9 +236,11 @@ class VentasSupabase {
               .eq('controla_stock', true)
               .single();
 
-          final productoSabor = Map<String, dynamic>.from(productoSaborResponse);
+          final productoSabor =
+              Map<String, dynamic>.from(productoSaborResponse);
           final productoSaborId = productoSabor['id'] as int;
-          final stockAnterior = (productoSabor['stock_actual'] as num).toDouble();
+          final stockAnterior =
+              (productoSabor['stock_actual'] as num).toDouble();
           final descuento = item.cantidad.toDouble();
           final stockNuevo = stockAnterior - descuento;
 
@@ -224,7 +257,8 @@ class VentasSupabase {
             'unidad_medida': 'unidad',
             'stock_anterior': stockAnterior,
             'stock_nuevo': stockNuevo,
-            'motivo': 'Venta #$ventaId - sabor seleccionado en ${item.producto.nombre}',
+            'motivo':
+                'Venta #$ventaId - sabor seleccionado en ${item.producto.nombre}',
             'referencia_tabla': 'ventas',
             'referencia_id': ventaId,
             'usuario_id': usuarioId,
@@ -236,8 +270,8 @@ class VentasSupabase {
 
   static Future<void> _actualizarTotalesCaja({
     required int cajaId,
-    required MetodoPago metodoPago,
-    required double total,
+    required List<PagoCobro> pagos,
+    required double totalVenta,
   }) async {
     final cliente = SupabaseCliente.cliente;
 
@@ -253,24 +287,24 @@ class VentasSupabase {
         (caja['total_efectivo'] as num?)?.toDouble() ?? 0;
     double totalTransferencia =
         (caja['total_transferencia'] as num?)?.toDouble() ?? 0;
-    double totalTarjeta =
-        (caja['total_tarjeta'] as num?)?.toDouble() ?? 0;
-    double totalVentas =
-        (caja['total_ventas'] as num?)?.toDouble() ?? 0;
+    double totalTarjeta = (caja['total_tarjeta'] as num?)?.toDouble() ?? 0;
+    double totalVentas = (caja['total_ventas'] as num?)?.toDouble() ?? 0;
 
-    switch (metodoPago) {
-      case MetodoPago.efectivo:
-        totalEfectivo += total;
-        break;
-      case MetodoPago.transferencia:
-        totalTransferencia += total;
-        break;
-      case MetodoPago.tarjeta:
-        totalTarjeta += total;
-        break;
+    for (final pago in pagos) {
+      switch (pago.metodoPago) {
+        case MetodoPago.efectivo:
+          totalEfectivo += pago.monto;
+          break;
+        case MetodoPago.transferencia:
+          totalTransferencia += pago.monto;
+          break;
+        case MetodoPago.tarjeta:
+          totalTarjeta += pago.monto;
+          break;
+      }
     }
 
-    totalVentas += total;
+    totalVentas += totalVenta;
 
     await cliente.from('cajas').update({
       'total_efectivo': totalEfectivo,
