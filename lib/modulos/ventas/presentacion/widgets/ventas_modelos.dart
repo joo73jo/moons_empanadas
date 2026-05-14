@@ -13,6 +13,9 @@ class ProductoVenta {
   final bool requiereSabores;
   final int cantidadSabores;
   final bool controlaStock;
+  final double stockActual;
+  final double stockMinimo;
+  final double stockCritico;
 
   const ProductoVenta({
     required this.id,
@@ -23,6 +26,9 @@ class ProductoVenta {
     required this.requiereSabores,
     required this.cantidadSabores,
     required this.controlaStock,
+    this.stockActual = 0,
+    this.stockMinimo = 0,
+    this.stockCritico = 0,
   });
 
   ProductoVenta copyWith({
@@ -34,6 +40,9 @@ class ProductoVenta {
     bool? requiereSabores,
     int? cantidadSabores,
     bool? controlaStock,
+    double? stockActual,
+    double? stockMinimo,
+    double? stockCritico,
   }) {
     return ProductoVenta(
       id: id ?? this.id,
@@ -44,7 +53,17 @@ class ProductoVenta {
       requiereSabores: requiereSabores ?? this.requiereSabores,
       cantidadSabores: cantidadSabores ?? this.cantidadSabores,
       controlaStock: controlaStock ?? this.controlaStock,
+      stockActual: stockActual ?? this.stockActual,
+      stockMinimo: stockMinimo ?? this.stockMinimo,
+      stockCritico: stockCritico ?? this.stockCritico,
     );
+  }
+
+  String get nivelStock {
+    if (!controlaStock) return 'sin_control';
+    if (stockActual <= stockCritico) return 'critico';
+    if (stockActual <= stockMinimo) return 'minimo';
+    return 'normal';
   }
 }
 
@@ -71,4 +90,34 @@ class ItemPedido {
 
     return true;
   }
+}
+
+class PedidoPreparacion {
+  final int id;
+  final DateTime fecha;
+  final String vendedorNombre;
+  final String estadoPreparacion;
+  final List<DetallePedidoPreparacion> detalles;
+
+  const PedidoPreparacion({
+    required this.id,
+    required this.fecha,
+    required this.vendedorNombre,
+    required this.estadoPreparacion,
+    required this.detalles,
+  });
+}
+
+class DetallePedidoPreparacion {
+  final String nombreProducto;
+  final String categoriaProducto;
+  final int cantidad;
+  final List<String> sabores;
+
+  const DetallePedidoPreparacion({
+    required this.nombreProducto,
+    required this.categoriaProducto,
+    required this.cantidad,
+    required this.sabores,
+  });
 }

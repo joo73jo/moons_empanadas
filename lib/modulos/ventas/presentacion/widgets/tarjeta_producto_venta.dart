@@ -18,8 +18,29 @@ class TarjetaProductoVenta extends StatelessWidget {
     this.onEliminar,
   });
 
+  Color get _colorStock {
+    switch (producto.nivelStock) {
+      case 'critico':
+        return Colors.redAccent;
+      case 'minimo':
+        return const Color(0xFFFFA726);
+      case 'sin_control':
+        return ColoresApp.textoSecundario;
+      default:
+        return const Color(0xFF00A896);
+    }
+  }
+
+  String get _textoStock {
+    if (!producto.controlaStock) return 'Sin stock';
+    return '${producto.stockActual.toStringAsFixed(0)} disp.';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final ancho = MediaQuery.of(context).size.width;
+    final esCelular = ancho < 760;
+
     return Container(
       decoration: BoxDecoration(
         color: ColoresApp.fondoSecundario,
@@ -29,15 +50,15 @@ class TarjetaProductoVenta extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: EdgeInsets.all(esCelular ? 12 : 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: esCelular ? 42 : 44,
+                  height: esCelular ? 42 : 44,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [
@@ -50,6 +71,31 @@ class TarjetaProductoVenta extends StatelessWidget {
                   child: const Icon(
                     Icons.fastfood_rounded,
                     color: Colors.black,
+                    size: 23,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  height: esCelular ? 34 : 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: _colorStock.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                      color: _colorStock.withOpacity(0.45),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _textoStock,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _colorStock,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
                 ),
                 const Spacer(),
@@ -79,49 +125,50 @@ class TarjetaProductoVenta extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 46,
-              child: Text(
-                producto.nombre,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: ColoresApp.textoPrincipal,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  height: 1.15,
-                ),
+            const SizedBox(height: 8),
+            Text(
+              producto.nombre,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: ColoresApp.textoPrincipal,
+                fontSize: esCelular ? 15 : 16,
+                fontWeight: FontWeight.w900,
+                height: 1.12,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               producto.categoria,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: ColoresApp.textoSecundario,
-                fontSize: 13,
+                fontSize: 12,
               ),
             ),
             const Spacer(),
             Text(
               '\$${producto.precio.toStringAsFixed(2)}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: ColoresApp.principal,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
+                fontSize: esCelular ? 21 : 22,
+                fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
-              height: 38,
+              height: esCelular ? 34 : 38,
               child: ElevatedButton(
-                onPressed: onAgregar,
+                onPressed: producto.controlaStock && producto.stockActual <= 0
+                    ? null
+                    : onAgregar,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColoresApp.principal,
+                  disabledBackgroundColor: ColoresApp.superficie,
                   foregroundColor: Colors.black,
+                  disabledForegroundColor: ColoresApp.textoSecundario,
                   padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -129,11 +176,13 @@ class TarjetaProductoVenta extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
-                  'Agregar',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
+                child: Text(
+                  producto.controlaStock && producto.stockActual <= 0
+                      ? 'Sin stock'
+                      : 'Agregar',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
                   ),
                 ),
               ),

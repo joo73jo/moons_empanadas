@@ -24,11 +24,15 @@ class PaginaVentas extends StatefulWidget {
 
 class _PaginaVentasState extends State<PaginaVentas> {
   late List<ProductoVenta> _productos;
+  List<PedidoPreparacion> _pedidosPreparacion = [];
+
   final List<ItemPedido> _pedido = [];
 
   String _busqueda = '';
   SeccionVenta _seccionActiva = SeccionVenta.individuales;
   bool _guardandoVenta = false;
+  bool _modoPreparacion = false;
+  bool _cargandoPreparacion = false;
 
   bool get _esDueno => widget.usuario.rol == 'dueno';
 
@@ -37,6 +41,7 @@ class _PaginaVentasState extends State<PaginaVentas> {
     super.initState();
     _productos = [];
     _cargarProductos();
+    _cargarPreparacion();
   }
 
   Future<void> _cargarProductos() async {
@@ -52,6 +57,36 @@ class _PaginaVentasState extends State<PaginaVentas> {
       debugPrint('ERROR PRODUCTOS SUPABASE: $e');
       _mostrarMensaje('Error cargando productos desde Supabase: $e');
     }
+  }
+
+  Future<void> _cargarPreparacion() async {
+    setState(() {
+      _cargandoPreparacion = true;
+    });
+
+    try {
+      final pedidos = await VentasSupabase.obtenerPedidosPreparacion();
+
+      if (!mounted) return;
+
+      setState(() {
+        _pedidosPreparacion = pedidos;
+        _cargandoPreparacion = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _cargandoPreparacion = false;
+      });
+
+      _mostrarMensaje('Error cargando preparación: $e');
+    }
+  }
+
+  Future<void> _refrescarTodo() async {
+    await _cargarProductos();
+    await _cargarPreparacion();
   }
 
   List<ProductoVenta> get _productosFiltrados {
@@ -131,6 +166,12 @@ class _PaginaVentasState extends State<PaginaVentas> {
 
   bool _esCelular(BuildContext context) {
     return MediaQuery.of(context).size.width < 760;
+  }
+
+  String _formatearHora(DateTime fecha) {
+    final hh = fecha.hour.toString().padLeft(2, '0');
+    final mm = fecha.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
   }
 
   void _mostrarMensaje(String mensaje) {
@@ -277,7 +318,9 @@ class _PaginaVentasState extends State<PaginaVentas> {
         _guardandoVenta = false;
       });
 
-      _mostrarMensaje('Venta guardada correctamente en Supabase.');
+      await _refrescarTodo();
+
+      _mostrarMensaje('Venta guardada y enviada a preparación.');
     } catch (e) {
       if (!mounted) return;
 
@@ -347,6 +390,52 @@ class _PaginaVentasState extends State<PaginaVentas> {
   }
 
   Future<void> _eliminarProducto(ProductoVenta producto) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: ColoresApp.superficie,
+        title: const Text(
+          'Eliminar producto',
+          style: TextStyle(
+            color: ColoresApp.textoPrincipal,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        content: Text(
+          '¿Seguro que deseas eliminar "${producto.nombre}"?\n\nYa no aparecerá como producto activo.',
+          style: const TextStyle(
+            color: ColoresApp.textoSecundario,
+            height: 1.35,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(
+                color: ColoresApp.textoSecundario,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'Sí, eliminar',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
     try {
       await ProductosSupabase.eliminarProducto(producto.id);
 
@@ -363,6 +452,22 @@ class _PaginaVentasState extends State<PaginaVentas> {
     }
   }
 
+  Future<void> _marcarPedidoListo(PedidoPreparacion pedido) async {
+    try {
+      await VentasSupabase.marcarPedidoListo(pedido.id);
+
+      if (!mounted) return;
+
+      setState(() {
+        _pedidosPreparacion.removeWhere((p) => p.id == pedido.id);
+      });
+
+      _mostrarMensaje('Pedido #${pedido.id} marcado como listo.');
+    } catch (e) {
+      _mostrarMensaje('Error marcando pedido como listo: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final productos = _productosFiltrados;
@@ -370,8 +475,8 @@ class _PaginaVentasState extends State<PaginaVentas> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          esCelular ? 'Ventas' : 'Ventas',
+        title: const Text(
+          'Ventas',
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
@@ -435,7 +540,7 @@ class _PaginaVentasState extends State<PaginaVentas> {
     return RefreshIndicator(
       color: ColoresApp.principal,
       backgroundColor: ColoresApp.superficie,
-      onRefresh: _cargarProductos,
+      onRefresh: _refrescarTodo,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(14),
@@ -489,7 +594,7 @@ class _PaginaVentasState extends State<PaginaVentas> {
     required bool alturaFija,
     required bool esCelular,
   }) {
-    final contenido = Container(
+    return Container(
       width: double.infinity,
       padding: EdgeInsets.all(esCelular ? 16 : 18),
       decoration: BoxDecoration(
@@ -504,7 +609,7 @@ class _PaginaVentasState extends State<PaginaVentas> {
         mainAxisSize: alturaFija ? MainAxisSize.max : MainAxisSize.min,
         children: [
           Text(
-            'Productos',
+            _modoPreparacion ? 'Preparación' : 'Productos',
             style: TextStyle(
               color: ColoresApp.textoPrincipal,
               fontSize: esCelular ? 23 : 24,
@@ -512,9 +617,11 @@ class _PaginaVentasState extends State<PaginaVentas> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Empanadas, combos y productos por sección',
-            style: TextStyle(
+          Text(
+            _modoPreparacion
+                ? 'Pedidos cobrados pendientes por preparar'
+                : 'Empanadas, combos y productos por sección',
+            style: const TextStyle(
               color: ColoresApp.textoSecundario,
               fontSize: 14,
               height: 1.25,
@@ -523,34 +630,94 @@ class _PaginaVentasState extends State<PaginaVentas> {
           const SizedBox(height: 16),
           _selectorSecciones(),
           const SizedBox(height: 16),
-          _campoBusqueda(),
+          if (_modoPreparacion)
+            _botonRefrescarPreparacion()
+          else
+            _campoBusqueda(),
           const SizedBox(height: 18),
           if (alturaFija)
             Expanded(
-              child: _listaProductos(productos, esCelular),
+              child: _modoPreparacion
+                  ? _listaPreparacion(esCelular)
+                  : _listaProductos(productos, esCelular),
             )
           else
-            _listaProductos(productos, esCelular),
+            _modoPreparacion
+                ? _listaPreparacion(esCelular)
+                : _listaProductos(productos, esCelular),
         ],
       ),
     );
-
-    return contenido;
   }
 
   Widget _selectorSecciones() {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: SeccionVenta.values.map((seccion) {
-        final activa = _seccionActiva == seccion;
-        final colores = _coloresSeccion(seccion);
+      children: [
+        ...SeccionVenta.values.map((seccion) {
+          final activa = !_modoPreparacion && _seccionActiva == seccion;
+          final colores = _coloresSeccion(seccion);
 
-        return InkWell(
+          return InkWell(
+            onTap: () {
+              setState(() {
+                _modoPreparacion = false;
+                _seccionActiva = seccion;
+              });
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                gradient: activa ? LinearGradient(colors: colores) : null,
+                color: activa ? null : ColoresApp.fondoSecundario,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color:
+                      activa ? Colors.transparent : Colors.white.withOpacity(0.08),
+                ),
+                boxShadow: activa
+                    ? [
+                        BoxShadow(
+                          color: colores.last.withOpacity(0.28),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _iconoSeccion(seccion),
+                    size: 18,
+                    color: activa ? Colors.black : ColoresApp.textoPrincipal,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _nombreSeccion(seccion),
+                    style: TextStyle(
+                      color: activa ? Colors.black : ColoresApp.textoPrincipal,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+        InkWell(
           onTap: () {
             setState(() {
-              _seccionActiva = seccion;
+              _modoPreparacion = true;
             });
+            _cargarPreparacion();
           },
           borderRadius: BorderRadius.circular(14),
           child: AnimatedContainer(
@@ -560,16 +727,25 @@ class _PaginaVentasState extends State<PaginaVentas> {
               vertical: 10,
             ),
             decoration: BoxDecoration(
-              gradient: activa ? LinearGradient(colors: colores) : null,
-              color: activa ? null : ColoresApp.fondoSecundario,
+              gradient: _modoPreparacion
+                  ? const LinearGradient(
+                      colors: [
+                        Color(0xFFFFD166),
+                        ColoresApp.principal,
+                      ],
+                    )
+                  : null,
+              color: _modoPreparacion ? null : ColoresApp.fondoSecundario,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: activa ? Colors.transparent : Colors.white.withOpacity(0.08),
+                color: _modoPreparacion
+                    ? Colors.transparent
+                    : Colors.white.withOpacity(0.08),
               ),
-              boxShadow: activa
+              boxShadow: _modoPreparacion
                   ? [
                       BoxShadow(
-                        color: colores.last.withOpacity(0.28),
+                        color: ColoresApp.principal.withOpacity(0.28),
                         blurRadius: 14,
                         offset: const Offset(0, 6),
                       ),
@@ -580,23 +756,75 @@ class _PaginaVentasState extends State<PaginaVentas> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  _iconoSeccion(seccion),
+                  Icons.restaurant_menu_rounded,
                   size: 18,
-                  color: activa ? Colors.black : ColoresApp.textoPrincipal,
+                  color: _modoPreparacion
+                      ? Colors.black
+                      : ColoresApp.textoPrincipal,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _nombreSeccion(seccion),
+                  'Preparación',
                   style: TextStyle(
-                    color: activa ? Colors.black : ColoresApp.textoPrincipal,
+                    color: _modoPreparacion
+                        ? Colors.black
+                        : ColoresApp.textoPrincipal,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+                if (_pedidosPreparacion.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _modoPreparacion ? Colors.black : ColoresApp.principal,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_pedidosPreparacion.length}',
+                      style: TextStyle(
+                        color: _modoPreparacion ? ColoresApp.principal : Colors.black,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-        );
-      }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _botonRefrescarPreparacion() {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton.icon(
+        onPressed: _cargarPreparacion,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: ColoresApp.textoPrincipal,
+          side: BorderSide(
+            color: Colors.white.withOpacity(0.14),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        icon: const Icon(
+          Icons.refresh_rounded,
+          color: ColoresApp.principal,
+        ),
+        label: const Text(
+          'Actualizar pedidos pendientes',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
     );
   }
 
@@ -671,7 +899,7 @@ class _PaginaVentasState extends State<PaginaVentas> {
           final producto = productos[index];
 
           return SizedBox(
-            height: 220,
+            height: 230,
             child: TarjetaProductoVenta(
               producto: producto,
               esDueno: _esDueno,
@@ -706,11 +934,235 @@ class _PaginaVentasState extends State<PaginaVentas> {
     );
   }
 
+  Widget _listaPreparacion(bool esCelular) {
+    if (_cargandoPreparacion) {
+      return SizedBox(
+        height: esCelular ? 220 : null,
+        child: const Center(
+          child: CircularProgressIndicator(
+            color: ColoresApp.principal,
+          ),
+        ),
+      );
+    }
+
+    if (_pedidosPreparacion.isEmpty) {
+      return Container(
+        width: double.infinity,
+        height: esCelular ? 180 : null,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: ColoresApp.fondoSecundario,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Text(
+          'No hay pedidos pendientes de preparación.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: ColoresApp.textoSecundario,
+            fontSize: 15,
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      itemCount: _pedidosPreparacion.length,
+      shrinkWrap: esCelular,
+      physics: esCelular
+          ? const NeverScrollableScrollPhysics()
+          : const AlwaysScrollableScrollPhysics(),
+      separatorBuilder: (_, __) => const SizedBox(height: 14),
+      itemBuilder: (context, index) {
+        final pedido = _pedidosPreparacion[index];
+        return _tarjetaPreparacion(pedido, index);
+      },
+    );
+  }
+
+  Widget _tarjetaPreparacion(PedidoPreparacion pedido, int index) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: ColoresApp.fondoSecundario,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: ColoresApp.principal.withOpacity(0.16),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      ColoresApp.principalClaro,
+                      ColoresApp.principal,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 22,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pedido #${pedido.id}',
+                      style: const TextStyle(
+                        color: ColoresApp.textoPrincipal,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Entró ${_formatearHora(pedido.fecha)} • ${pedido.vendedorNombre}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: ColoresApp.textoSecundario,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0x22FFA726),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'PENDIENTE',
+                  style: TextStyle(
+                    color: Color(0xFFFFA726),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...pedido.detalles.map((detalle) {
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${detalle.cantidad} x ${detalle.nombreProducto}',
+                    style: const TextStyle(
+                      color: ColoresApp.textoPrincipal,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    detalle.categoriaProducto,
+                    style: const TextStyle(
+                      color: ColoresApp.textoSecundario,
+                      fontSize: 12,
+                    ),
+                  ),
+                  if (detalle.sabores.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: List.generate(detalle.sabores.length, (i) {
+                        final sabor = detalle.sabores[i];
+
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ColoresApp.principal.withOpacity(0.14),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: ColoresApp.principal.withOpacity(0.25),
+                            ),
+                          ),
+                          child: Text(
+                            '${i + 1}. $sabor',
+                            style: const TextStyle(
+                              color: ColoresApp.principal,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: () => _marcarPedidoListo(pedido),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00A896),
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              icon: const Icon(Icons.check_circle_rounded),
+              label: const Text(
+                'Marcar como listo',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _panelPedido({
     required bool alturaFija,
     required bool esCelular,
   }) {
-    final contenido = Container(
+    return Container(
       width: double.infinity,
       padding: EdgeInsets.all(esCelular ? 16 : 18),
       decoration: BoxDecoration(
@@ -756,8 +1208,6 @@ class _PaginaVentasState extends State<PaginaVentas> {
         ],
       ),
     );
-
-    return contenido;
   }
 
   Widget _listaPedido(bool esCelular) {

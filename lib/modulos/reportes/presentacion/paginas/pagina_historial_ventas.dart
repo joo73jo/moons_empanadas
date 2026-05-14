@@ -14,6 +14,9 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
   bool _cargando = true;
   String _busqueda = '';
 
+  DateTime? _fechaInicio;
+  DateTime? _fechaFin;
+
   @override
   void initState() {
     super.initState();
@@ -26,7 +29,25 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
     });
 
     try {
-      final ventas = await VentasHistorialSupabase.obtenerVentas();
+      final ventas = await VentasHistorialSupabase.obtenerVentas(
+        fechaInicio: _fechaInicio == null
+            ? null
+            : DateTime(
+                _fechaInicio!.year,
+                _fechaInicio!.month,
+                _fechaInicio!.day,
+              ),
+        fechaFin: _fechaFin == null
+            ? null
+            : DateTime(
+                _fechaFin!.year,
+                _fechaFin!.month,
+                _fechaFin!.day,
+                23,
+                59,
+                59,
+              ),
+      );
 
       if (!mounted) return;
 
@@ -66,6 +87,13 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
     );
   }
 
+  String _formatearFecha(DateTime fecha) {
+    final dd = fecha.day.toString().padLeft(2, '0');
+    final mm = fecha.month.toString().padLeft(2, '0');
+    final yyyy = fecha.year.toString();
+    return '$dd/$mm/$yyyy';
+  }
+
   String _formatearFechaHora(DateTime fecha) {
     final dd = fecha.day.toString().padLeft(2, '0');
     final mm = fecha.month.toString().padLeft(2, '0');
@@ -103,15 +131,183 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
       final coincideVenta = venta.id.toString().contains(q) ||
           venta.vendedorNombre.toLowerCase().contains(q) ||
           venta.vendedorLogin.toLowerCase().contains(q) ||
+          venta.estado.toLowerCase().contains(q) ||
+          (venta.motivoAnulacion ?? '').toLowerCase().contains(q) ||
           _nombreMetodo(venta).toLowerCase().contains(q);
 
-      final coincideDetalles = venta.detalles.any((detalle) =>
-          detalle.nombreProducto.toLowerCase().contains(q) ||
-          detalle.categoriaProducto.toLowerCase().contains(q) ||
-          detalle.sabores.any((sabor) => sabor.toLowerCase().contains(q)));
+      final coincideDetalles = venta.detalles.any(
+        (detalle) =>
+            detalle.nombreProducto.toLowerCase().contains(q) ||
+            detalle.categoriaProducto.toLowerCase().contains(q) ||
+            detalle.sabores.any((sabor) => sabor.toLowerCase().contains(q)),
+      );
 
       return coincideVenta || coincideDetalles;
     }).toList();
+  }
+
+  Future<void> _seleccionarFechaInicio() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaInicio ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark(),
+          child: child!,
+        );
+      },
+    );
+
+    if (fecha == null) return;
+
+    setState(() {
+      _fechaInicio = fecha;
+      _fechaFin ??= fecha;
+    });
+
+    await _cargarVentas();
+  }
+
+  Future<void> _seleccionarFechaFin() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaFin ?? _fechaInicio ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark(),
+          child: child!,
+        );
+      },
+    );
+
+    if (fecha == null) return;
+
+    setState(() {
+      _fechaFin = fecha;
+      _fechaInicio ??= fecha;
+    });
+
+    await _cargarVentas();
+  }
+
+  Future<void> _limpiarFechas() async {
+    setState(() {
+      _fechaInicio = null;
+      _fechaFin = null;
+    });
+
+    await _cargarVentas();
+  }
+
+  Future<void> _anularVenta(VentaHistorial venta) async {
+    if (venta.estaAnulada) {
+      _mostrarMensaje('Esta venta ya está anulada.');
+      return;
+    }
+
+    final controller = TextEditingController();
+
+    final motivo = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: ColoresApp.superficie,
+        title: const Text(
+          'Anular venta',
+          style: TextStyle(
+            color: ColoresApp.textoPrincipal,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '¿Seguro que deseas anular la venta #${venta.id}?\n\nLa venta seguirá en el historial, pero marcada como anulada.',
+              style: const TextStyle(
+                color: ColoresApp.textoSecundario,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              maxLines: 3,
+              style: const TextStyle(color: ColoresApp.textoPrincipal),
+              decoration: InputDecoration(
+                labelText: 'Razón de anulación',
+                labelStyle: const TextStyle(
+                  color: ColoresApp.textoSecundario,
+                ),
+                filled: true,
+                fillColor: ColoresApp.fondoSecundario,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(
+                color: ColoresApp.textoSecundario,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final texto = controller.text.trim();
+              if (texto.isEmpty) return;
+              Navigator.pop(context, texto);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'Sí, anular',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+
+    if (motivo == null || motivo.trim().isEmpty) return;
+
+    setState(() {
+      _cargando = true;
+    });
+
+    try {
+      await VentasHistorialSupabase.anularVenta(
+        ventaId: venta.id,
+        motivo: motivo,
+      );
+
+      if (!mounted) return;
+
+      _mostrarMensaje('Venta anulada correctamente.');
+      await _cargarVentas();
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _cargando = false;
+      });
+
+      _mostrarMensaje('Error anulando venta: $e');
+    }
   }
 
   Future<void> _verDetalle(VentaHistorial venta) async {
@@ -135,7 +331,9 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
               color: ColoresApp.superficie,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: Colors.white.withOpacity(0.06),
+                color: venta.estaAnulada
+                    ? Colors.redAccent.withOpacity(0.35)
+                    : Colors.white.withOpacity(0.06),
               ),
             ),
             child: Column(
@@ -148,7 +346,9 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: ColoresApp.textoPrincipal,
+                          color: venta.estaAnulada
+                              ? Colors.redAccent
+                              : ColoresApp.textoPrincipal,
                           fontSize: esCelular ? 22 : 24,
                           fontWeight: FontWeight.w900,
                         ),
@@ -177,6 +377,29 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                     ),
                   ),
                 ),
+                if (venta.estaAnulada) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.redAccent.withOpacity(0.35),
+                      ),
+                    ),
+                    child: Text(
+                      'ANULADA\nMotivo: ${venta.motivoAnulacion ?? 'Sin motivo'}'
+                      '${venta.fechaAnulacion == null ? '' : '\nFecha: ${_formatearFechaHora(venta.fechaAnulacion!)}'}',
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.w800,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 18),
                 Expanded(
                   child: venta.detalles.isEmpty
@@ -200,6 +423,33 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                 ),
                 const SizedBox(height: 14),
                 _resumenTotalDetalle(venta, esCelular),
+                if (!venta.estaAnulada) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _anularVenta(venta);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.redAccent,
+                        side: BorderSide(
+                          color: Colors.redAccent.withOpacity(0.45),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.cancel_rounded),
+                      label: const Text(
+                        'Anular venta',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -345,7 +595,9 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ColoresApp.fondoSecundario,
+        color: venta.estaAnulada
+            ? Colors.redAccent.withOpacity(0.10)
+            : ColoresApp.fondoSecundario,
         borderRadius: BorderRadius.circular(18),
       ),
       child: esCelular
@@ -362,10 +614,13 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                 const SizedBox(height: 8),
                 Text(
                   'Total: \$${venta.total.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: ColoresApp.principal,
+                  style: TextStyle(
+                    color:
+                        venta.estaAnulada ? Colors.redAccent : ColoresApp.principal,
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
+                    decoration:
+                        venta.estaAnulada ? TextDecoration.lineThrough : null,
                   ),
                 ),
               ],
@@ -383,10 +638,13 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                 ),
                 Text(
                   'Total: \$${venta.total.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: ColoresApp.principal,
+                  style: TextStyle(
+                    color:
+                        venta.estaAnulada ? Colors.redAccent : ColoresApp.principal,
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
+                    decoration:
+                        venta.estaAnulada ? TextDecoration.lineThrough : null,
                   ),
                 ),
               ],
@@ -487,6 +745,8 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      _filtrosFecha(esCelular),
+                      const SizedBox(height: 12),
                       TextField(
                         onChanged: (value) {
                           setState(() {
@@ -497,8 +757,9 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                           color: ColoresApp.textoPrincipal,
                         ),
                         decoration: InputDecoration(
-                          hintText:
-                              esCelular ? 'Buscar venta...' : 'Buscar por venta, vendedor, método o producto...',
+                          hintText: esCelular
+                              ? 'Buscar venta...'
+                              : 'Buscar por venta, vendedor, método, estado o producto...',
                           hintStyle: const TextStyle(
                             color: ColoresApp.textoSecundario,
                           ),
@@ -565,6 +826,107 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
     );
   }
 
+  Widget _filtrosFecha(bool esCelular) {
+    final inicioTexto =
+        _fechaInicio == null ? 'Desde' : _formatearFecha(_fechaInicio!);
+    final finTexto = _fechaFin == null ? 'Hasta' : _formatearFecha(_fechaFin!);
+
+    if (esCelular) {
+      return Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: _botonFecha(inicioTexto, _seleccionarFechaInicio),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: _botonFecha(finTexto, _seleccionarFechaFin),
+          ),
+          if (_fechaInicio != null || _fechaFin != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: _botonLimpiarFechas(),
+            ),
+          ],
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 46,
+            child: _botonFecha(inicioTexto, _seleccionarFechaInicio),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: SizedBox(
+            height: 46,
+            child: _botonFecha(finTexto, _seleccionarFechaFin),
+          ),
+        ),
+        if (_fechaInicio != null || _fechaFin != null) ...[
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 160,
+            height: 46,
+            child: _botonLimpiarFechas(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _botonFecha(String texto, VoidCallback onPressed) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: ColoresApp.textoPrincipal,
+        side: BorderSide(
+          color: Colors.white.withOpacity(0.12),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      icon: const Icon(
+        Icons.calendar_month_rounded,
+        color: ColoresApp.principal,
+      ),
+      label: Text(
+        texto,
+        style: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+
+  Widget _botonLimpiarFechas() {
+    return OutlinedButton.icon(
+      onPressed: _limpiarFechas,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.redAccent,
+        side: BorderSide(
+          color: Colors.redAccent.withOpacity(0.45),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      icon: const Icon(Icons.close_rounded),
+      label: const Text(
+        'Limpiar',
+        style: TextStyle(fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+
   Widget _tarjetaVenta(VentaHistorial venta) {
     return InkWell(
       onTap: () => _verDetalle(venta),
@@ -574,6 +936,11 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
         decoration: BoxDecoration(
           color: ColoresApp.fondoSecundario,
           borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: venta.estaAnulada
+                ? Colors.redAccent.withOpacity(0.40)
+                : Colors.transparent,
+          ),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -585,7 +952,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                 children: [
                   Row(
                     children: [
-                      _iconoVenta(),
+                      _iconoVenta(venta),
                       const SizedBox(width: 12),
                       Expanded(
                         child: _infoVenta(venta),
@@ -600,7 +967,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
 
             return Row(
               children: [
-                _iconoVenta(),
+                _iconoVenta(venta),
                 const SizedBox(width: 14),
                 Expanded(
                   child: _infoVenta(venta),
@@ -615,21 +982,30 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
     );
   }
 
-  Widget _iconoVenta() {
+  Widget _iconoVenta(VentaHistorial venta) {
     return Container(
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            ColoresApp.principalClaro,
-            ColoresApp.principal,
-          ],
-        ),
+        gradient: venta.estaAnulada
+            ? const LinearGradient(
+                colors: [
+                  Colors.redAccent,
+                  Color(0xFF8B0000),
+                ],
+              )
+            : const LinearGradient(
+                colors: [
+                  ColoresApp.principalClaro,
+                  ColoresApp.principal,
+                ],
+              ),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Icon(
-        Icons.receipt_long_rounded,
+      child: Icon(
+        venta.estaAnulada
+            ? Icons.cancel_rounded
+            : Icons.receipt_long_rounded,
         color: Colors.black,
       ),
     );
@@ -639,15 +1015,42 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Venta #${venta.id}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: ColoresApp.textoPrincipal,
-            fontSize: 17,
-            fontWeight: FontWeight.w900,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Venta #${venta.id}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: venta.estaAnulada
+                      ? Colors.redAccent
+                      : ColoresApp.textoPrincipal,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            if (venta.estaAnulada)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'ANULADA',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(
@@ -670,6 +1073,20 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
             height: 1.2,
           ),
         ),
+        if (venta.estaAnulada && venta.motivoAnulacion != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Motivo: ${venta.motivoAnulacion}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontSize: 12,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -684,10 +1101,11 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
       children: [
         Text(
           '\$${venta.total.toStringAsFixed(2)}',
-          style: const TextStyle(
-            color: ColoresApp.principal,
+          style: TextStyle(
+            color: venta.estaAnulada ? Colors.redAccent : ColoresApp.principal,
             fontSize: 22,
             fontWeight: FontWeight.w900,
+            decoration: venta.estaAnulada ? TextDecoration.lineThrough : null,
           ),
         ),
         const SizedBox(height: 6),

@@ -51,6 +51,7 @@ class VentasSupabase {
               ? _crearObservacionPagoMixto(resultadoCobro.pagos)
               : null,
           'estado': 'pagada',
+          'estado_preparacion': 'pendiente',
         })
         .select('id')
         .single();
@@ -97,6 +98,93 @@ class VentasSupabase {
       pagos: resultadoCobro.pagos,
       totalVenta: resultadoCobro.total,
     );
+  }
+
+  static Future<List<PedidoPreparacion>> obtenerPedidosPreparacion() async {
+  final cliente = SupabaseCliente.cliente;
+
+  final ventasResponse = await cliente
+      .from('ventas')
+      .select('''
+        id,
+        created_at,
+        estado_preparacion,
+        usuario:usuarios!ventas_usuario_id_fkey(nombre)
+      ''')
+      .eq('estado', 'pagada')
+      .eq('estado_preparacion', 'pendiente')
+      .order('id', ascending: true)
+      .limit(50);
+
+  final ventas = ventasResponse
+      .map<Map<String, dynamic>>(
+        (item) => Map<String, dynamic>.from(item as Map),
+      )
+      .toList();
+
+  if (ventas.isEmpty) return [];
+
+  final idsVentas = ventas.map((v) => v['id'] as int).toList();
+
+  final detallesResponse = await cliente
+      .from('detalle_venta')
+      .select('''
+        venta_id,
+        nombre_producto,
+        categoria_producto,
+        cantidad,
+        sabores
+      ''')
+      .inFilter('venta_id', idsVentas)
+      .order('id', ascending: true);
+
+  final detalles = detallesResponse
+      .map<Map<String, dynamic>>(
+        (item) => Map<String, dynamic>.from(item as Map),
+      )
+      .toList();
+
+  final Map<int, List<DetallePedidoPreparacion>> detallesPorVenta = {};
+
+  for (final detalle in detalles) {
+    final ventaId = detalle['venta_id'] as int;
+    final saboresRaw = detalle['sabores'];
+    final sabores = saboresRaw is List
+        ? saboresRaw.map((e) => e.toString()).toList()
+        : <String>[];
+
+    detallesPorVenta.putIfAbsent(ventaId, () => []);
+    detallesPorVenta[ventaId]!.add(
+      DetallePedidoPreparacion(
+        nombreProducto: (detalle['nombre_producto'] ?? '').toString(),
+        categoriaProducto: (detalle['categoria_producto'] ?? '').toString(),
+        cantidad: detalle['cantidad'] as int,
+        sabores: sabores,
+      ),
+    );
+  }
+
+  return ventas.map((venta) {
+    final usuario = venta['usuario'] == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(venta['usuario'] as Map);
+
+    return PedidoPreparacion(
+      id: venta['id'] as int,
+      fecha: DateTime.parse(venta['created_at'] as String),
+      vendedorNombre: (usuario['nombre'] ?? '').toString(),
+      estadoPreparacion:
+          (venta['estado_preparacion'] ?? 'pendiente').toString(),
+      detalles: detallesPorVenta[venta['id'] as int] ?? [],
+    );
+  }).toList();
+}
+
+  static Future<void> marcarPedidoListo(int ventaId) async {
+    await SupabaseCliente.cliente
+        .from('ventas')
+        .update({'estado_preparacion': 'listo'})
+        .eq('id', ventaId);
   }
 
   static String _crearObservacionPagoMixto(List<PagoCobro> pagos) {

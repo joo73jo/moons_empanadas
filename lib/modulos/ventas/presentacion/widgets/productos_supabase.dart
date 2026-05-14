@@ -15,18 +15,7 @@ class ProductosSupabase {
           .map((item) => Map<String, dynamic>.from(item as Map))
           .toList();
 
-      return lista.map<ProductoVenta>((mapa) {
-        return ProductoVenta(
-          id: (mapa['id'] as num).toInt(),
-          nombre: (mapa['nombre'] ?? '').toString(),
-          categoria: (mapa['categoria'] ?? '').toString(),
-          precio: (mapa['precio'] as num).toDouble(),
-          seccion: _mapearSeccion((mapa['seccion'] ?? '').toString()),
-          requiereSabores: mapa['requiere_sabores'] as bool? ?? false,
-          cantidadSabores: (mapa['cantidad_sabores'] as num?)?.toInt() ?? 0,
-          controlaStock: mapa['controla_stock'] as bool? ?? true,
-        );
-      }).toList();
+      return lista.map<ProductoVenta>(_mapearProducto).toList();
     } on PostgrestException catch (e) {
       throw Exception('Supabase productos: ${e.message}');
     } catch (e) {
@@ -45,23 +34,15 @@ class ProductosSupabase {
           'requiere_sabores': producto.requiereSabores,
           'cantidad_sabores': producto.cantidadSabores,
           'controla_stock': producto.controlaStock,
+          'stock_actual': producto.stockActual,
+          'stock_minimo': producto.stockMinimo,
+          'stock_critico': producto.stockCritico,
           'activo': true,
         })
         .select()
         .single();
 
-    final mapa = Map<String, dynamic>.from(respuesta);
-
-    return ProductoVenta(
-      id: (mapa['id'] as num).toInt(),
-      nombre: (mapa['nombre'] ?? '').toString(),
-      categoria: (mapa['categoria'] ?? '').toString(),
-      precio: (mapa['precio'] as num).toDouble(),
-      seccion: _mapearSeccion((mapa['seccion'] ?? '').toString()),
-      requiereSabores: mapa['requiere_sabores'] as bool? ?? false,
-      cantidadSabores: (mapa['cantidad_sabores'] as num?)?.toInt() ?? 0,
-      controlaStock: mapa['controla_stock'] as bool? ?? true,
-    );
+    return _mapearProducto(Map<String, dynamic>.from(respuesta));
   }
 
   static Future<ProductoVenta> actualizarProducto(ProductoVenta producto) async {
@@ -75,13 +56,24 @@ class ProductosSupabase {
           'requiere_sabores': producto.requiereSabores,
           'cantidad_sabores': producto.cantidadSabores,
           'controla_stock': producto.controlaStock,
+          'stock_minimo': producto.stockMinimo,
+          'stock_critico': producto.stockCritico,
         })
         .eq('id', producto.id)
         .select()
         .single();
 
-    final mapa = Map<String, dynamic>.from(respuesta);
+    return _mapearProducto(Map<String, dynamic>.from(respuesta));
+  }
 
+  static Future<void> eliminarProducto(int id) async {
+    await SupabaseCliente.cliente
+        .from('productos')
+        .update({'activo': false})
+        .eq('id', id);
+  }
+
+  static ProductoVenta _mapearProducto(Map<String, dynamic> mapa) {
     return ProductoVenta(
       id: (mapa['id'] as num).toInt(),
       nombre: (mapa['nombre'] ?? '').toString(),
@@ -91,14 +83,10 @@ class ProductosSupabase {
       requiereSabores: mapa['requiere_sabores'] as bool? ?? false,
       cantidadSabores: (mapa['cantidad_sabores'] as num?)?.toInt() ?? 0,
       controlaStock: mapa['controla_stock'] as bool? ?? true,
+      stockActual: (mapa['stock_actual'] as num?)?.toDouble() ?? 0,
+      stockMinimo: (mapa['stock_minimo'] as num?)?.toDouble() ?? 0,
+      stockCritico: (mapa['stock_critico'] as num?)?.toDouble() ?? 0,
     );
-  }
-
-  static Future<void> eliminarProducto(int id) async {
-    await SupabaseCliente.cliente
-        .from('productos')
-        .update({'activo': false})
-        .eq('id', id);
   }
 
   static SeccionVenta _mapearSeccion(String valor) {
