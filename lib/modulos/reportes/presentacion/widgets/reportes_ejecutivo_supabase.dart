@@ -213,6 +213,7 @@ class ReportesEjecutivoSupabase {
     final cliente = SupabaseCliente.cliente;
 
     final ahora = DateTime.now();
+
     final inicio = fechaInicio == null
         ? DateTime(ahora.year, ahora.month, ahora.day)
         : DateTime(fechaInicio.year, fechaInicio.month, fechaInicio.day);
@@ -222,6 +223,7 @@ class ReportesEjecutivoSupabase {
         : DateTime(fechaFin.year, fechaFin.month, fechaFin.day);
 
     final finExclusivo = finBase.add(const Duration(days: 1));
+
     final diasRango = finExclusivo.difference(inicio).inDays <= 0
         ? 1
         : finExclusivo.difference(inicio).inDays;
@@ -238,41 +240,54 @@ class ReportesEjecutivoSupabase {
           subtotal,
           total,
           estado,
-          usuario:usuarios(nombre, usuario)
+          usuario:usuarios!ventas_usuario_id_fkey(nombre, usuario)
         ''')
-        .gte('created_at', inicio.toIso8601String())
-        .lt('created_at', finExclusivo.toIso8601String())
+        .gte('created_at', _fechaSql(inicio))
+        .lt('created_at', _fechaSql(finExclusivo))
         .eq('estado', 'pagada')
         .order('created_at', ascending: true);
 
     final ventasAnteriorResponse = await cliente
         .from('ventas')
         .select('id, created_at, total, estado')
-        .gte('created_at', inicioAnterior.toIso8601String())
-        .lt('created_at', finAnterior.toIso8601String())
+        .gte('created_at', _fechaSql(inicioAnterior))
+        .lt('created_at', _fechaSql(finAnterior))
         .eq('estado', 'pagada');
 
-    final detalleVentasResponse = await cliente
-        .from('detalle_venta')
-        .select('''
-          id,
-          venta_id,
-          created_at,
-          nombre_producto,
-          categoria_producto,
-          precio_unitario,
-          cantidad,
-          subtotal,
-          sabores
-        ''')
-        .gte('created_at', inicio.toIso8601String())
-        .lt('created_at', finExclusivo.toIso8601String());
+    final ventas = _normalizarLista(ventasResponse);
+    final ventasAnterior = _normalizarLista(ventasAnteriorResponse);
 
-    final detalleAnteriorResponse = await cliente
-        .from('detalle_venta')
-        .select('id, created_at, cantidad, subtotal')
-        .gte('created_at', inicioAnterior.toIso8601String())
-        .lt('created_at', finAnterior.toIso8601String());
+    final idsVentas = ventas.map((v) => v['id'] as int).toList();
+    final idsVentasAnterior =
+        ventasAnterior.map((v) => v['id'] as int).toList();
+
+    final detalles = idsVentas.isEmpty
+        ? <Map<String, dynamic>>[]
+        : _normalizarLista(
+            await cliente
+                .from('detalle_venta')
+                .select('''
+                  id,
+                  venta_id,
+                  created_at,
+                  nombre_producto,
+                  categoria_producto,
+                  precio_unitario,
+                  cantidad,
+                  subtotal,
+                  sabores
+                ''')
+                .inFilter('venta_id', idsVentas),
+          );
+
+    final detallesAnterior = idsVentasAnterior.isEmpty
+        ? <Map<String, dynamic>>[]
+        : _normalizarLista(
+            await cliente
+                .from('detalle_venta')
+                .select('id, venta_id, created_at, cantidad, subtotal')
+                .inFilter('venta_id', idsVentasAnterior),
+          );
 
     final ingredientesResponse = await cliente
         .from('ingredientes')
@@ -297,11 +312,6 @@ class ReportesEjecutivoSupabase {
         ''')
         .order('created_at', ascending: false)
         .limit(10);
-
-    final ventas = _normalizarLista(ventasResponse);
-    final ventasAnterior = _normalizarLista(ventasAnteriorResponse);
-    final detalles = _normalizarLista(detalleVentasResponse);
-    final detallesAnterior = _normalizarLista(detalleAnteriorResponse);
 
     final totalVendido = _sumarCampo(ventas, 'total');
     final totalAnterior = _sumarCampo(ventasAnterior, 'total');
@@ -337,9 +347,12 @@ class ReportesEjecutivoSupabase {
     );
     final producciones = _construirProducciones(produccionesResponse);
 
-    final mejorProducto = topCantidad.isEmpty ? 'Sin datos' : topCantidad.first.nombre;
-    final mejorVendedor = vendedores.isEmpty ? 'Sin datos' : vendedores.first.nombre;
-    final horaFuerte = ventasPorHora.isEmpty ? 'Sin datos' : ventasPorHora.first.hora;
+    final mejorProducto =
+        topCantidad.isEmpty ? 'Sin datos' : topCantidad.first.nombre;
+    final mejorVendedor =
+        vendedores.isEmpty ? 'Sin datos' : vendedores.first.nombre;
+    final horaFuerte =
+        ventasPorHora.isEmpty ? 'Sin datos' : ventasPorHora.first.hora;
 
     final kpis = <KpiReporte>[
       KpiReporte(
@@ -486,7 +499,7 @@ class ReportesEjecutivoSupabase {
       int cantidad = 0;
 
       for (final venta in ventas) {
-        final fecha = DateTime.parse(venta['created_at'] as String).toLocal();
+        final fecha = DateTime.parse(venta['created_at'] as String);
         if (!fecha.isBefore(dia) && fecha.isBefore(siguiente)) {
           total += (venta['total'] as num?)?.toDouble() ?? 0;
           cantidad++;
@@ -517,14 +530,16 @@ class ReportesEjecutivoSupabase {
     }
 
     for (final venta in ventas) {
-      final fecha = DateTime.parse(venta['created_at'] as String).toLocal();
+      final fecha = DateTime.parse(venta['created_at'] as String);
       final total = (venta['total'] as num?)?.toDouble() ?? 0;
       totalPorHora[fecha.hour] = (totalPorHora[fecha.hour] ?? 0) + total;
       ventasPorHora[fecha.hour] = (ventasPorHora[fecha.hour] ?? 0) + 1;
     }
 
     final resultado = totalPorHora.entries
-        .where((entry) => entry.value > 0 || (ventasPorHora[entry.key] ?? 0) > 0)
+        .where(
+          (entry) => entry.value > 0 || (ventasPorHora[entry.key] ?? 0) > 0,
+        )
         .map(
           (entry) => SerieHoraReporte(
             hora: '${entry.key.toString().padLeft(2, '0')}:00',
@@ -582,7 +597,8 @@ class ReportesEjecutivoSupabase {
 
     for (final detalle in detalles) {
       final nombre = (detalle['nombre_producto'] ?? 'Sin producto').toString();
-      final categoria = (detalle['categoria_producto'] ?? 'Sin categoría').toString();
+      final categoria =
+          (detalle['categoria_producto'] ?? 'Sin categoría').toString();
       final cantidad = (detalle['cantidad'] as num?)?.toInt() ?? 0;
       final subtotal = (detalle['subtotal'] as num?)?.toDouble() ?? 0;
 
@@ -629,7 +645,8 @@ class ReportesEjecutivoSupabase {
     double totalGeneral = 0;
 
     for (final detalle in detalles) {
-      final categoria = (detalle['categoria_producto'] ?? 'Sin categoría').toString();
+      final categoria =
+          (detalle['categoria_producto'] ?? 'Sin categoría').toString();
       final cantidad = (detalle['cantidad'] as num?)?.toInt() ?? 0;
       final subtotal = (detalle['subtotal'] as num?)?.toDouble() ?? 0;
 
@@ -779,7 +796,7 @@ class ReportesEjecutivoSupabase {
         producto: (producto['nombre'] ?? 'Sin producto').toString(),
         cantidad: (mapa['cantidad_producida'] as num?)?.toDouble() ?? 0,
         usuario: (usuario['nombre'] ?? 'Sin usuario').toString(),
-        fecha: DateTime.parse(mapa['created_at'] as String).toLocal(),
+        fecha: DateTime.parse(mapa['created_at'] as String),
       );
     }).toList();
   }
@@ -832,7 +849,7 @@ class ReportesEjecutivoSupabase {
       );
     } else {
       insights.add(
-        InsightReporte(
+        const InsightReporte(
           titulo: 'Ventas estables',
           descripcion:
               'El período se mantiene relativamente estable frente al anterior. La prioridad debe ser subir ticket promedio y mejorar productos de alta rotación.',
@@ -915,6 +932,8 @@ class ReportesEjecutivoSupabase {
         return 'Transferencia';
       case 'tarjeta':
         return 'Tarjeta';
+      case 'mixto':
+        return 'Pago mixto';
       default:
         return metodo.isEmpty ? 'Sin método' : metodo;
     }
@@ -945,5 +964,16 @@ class ReportesEjecutivoSupabase {
     final dd = fecha.day.toString().padLeft(2, '0');
     final mm = fecha.month.toString().padLeft(2, '0');
     return '$dd/$mm';
+  }
+
+  static String _fechaSql(DateTime fecha) {
+    final yyyy = fecha.year.toString().padLeft(4, '0');
+    final mm = fecha.month.toString().padLeft(2, '0');
+    final dd = fecha.day.toString().padLeft(2, '0');
+    final hh = fecha.hour.toString().padLeft(2, '0');
+    final min = fecha.minute.toString().padLeft(2, '0');
+    final ss = fecha.second.toString().padLeft(2, '0');
+
+    return '$yyyy-$mm-$dd $hh:$min:$ss';
   }
 }
