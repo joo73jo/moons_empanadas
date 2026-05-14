@@ -40,19 +40,19 @@ class _PaginaVentasState extends State<PaginaVentas> {
   }
 
   Future<void> _cargarProductos() async {
-  try {
-    final productos = await ProductosSupabase.obtenerProductos();
+    try {
+      final productos = await ProductosSupabase.obtenerProductos();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _productos = productos;
-    });
-  } catch (e) {
-    debugPrint('ERROR PRODUCTOS SUPABASE: $e');
-    _mostrarMensaje('Error cargando productos desde Supabase: $e');
+      setState(() {
+        _productos = productos;
+      });
+    } catch (e) {
+      debugPrint('ERROR PRODUCTOS SUPABASE: $e');
+      _mostrarMensaje('Error cargando productos desde Supabase: $e');
+    }
   }
-}
 
   List<ProductoVenta> get _productosFiltrados {
     return _productos.where((producto) {
@@ -127,6 +127,10 @@ class _PaginaVentasState extends State<PaginaVentas> {
       case SeccionVenta.uber:
         return const Color(0xFF00A896);
     }
+  }
+
+  bool _esCelular(BuildContext context) {
+    return MediaQuery.of(context).size.width < 760;
   }
 
   void _mostrarMensaje(String mensaje) {
@@ -362,386 +366,569 @@ class _PaginaVentasState extends State<PaginaVentas> {
   @override
   Widget build(BuildContext context) {
     final productos = _productosFiltrados;
-    final coloresActivos = _coloresSeccion(_seccionActiva);
+    final esCelular = _esCelular(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ventas'),
+        title: Text(
+          esCelular ? 'Ventas' : 'Ventas',
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           if (_esDueno)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: TextButton.icon(
-                onPressed: _nuevoProducto,
-                icon: const Icon(
-                  Icons.add_circle_outline_rounded,
-                  color: ColoresApp.principal,
-                ),
-                label: const Text(
-                  'Nuevo producto',
-                  style: TextStyle(
-                    color: ColoresApp.textoPrincipal,
-                    fontWeight: FontWeight.w700,
+            esCelular
+                ? IconButton(
+                    onPressed: _nuevoProducto,
+                    icon: const Icon(
+                      Icons.add_circle_outline_rounded,
+                      color: ColoresApp.principal,
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: TextButton.icon(
+                      onPressed: _nuevoProducto,
+                      icon: const Icon(
+                        Icons.add_circle_outline_rounded,
+                        color: ColoresApp.principal,
+                      ),
+                      label: const Text(
+                        'Nuevo producto',
+                        style: TextStyle(
+                          color: ColoresApp.textoPrincipal,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
           Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: EdgeInsets.only(right: esCelular ? 10 : 16),
             child: Center(
-              child: Text(
-                widget.usuario.nombre,
-                style: const TextStyle(
-                  color: ColoresApp.textoSecundario,
-                  fontWeight: FontWeight.w600,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: esCelular ? 92 : 180),
+                child: Text(
+                  widget.usuario.nombre,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: ColoresApp.textoSecundario,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
           ),
         ],
       ),
-      body: Stack(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: ColoresApp.fondoPrincipal,
+        child: esCelular
+            ? _layoutCelular(productos)
+            : _layoutEscritorio(productos),
+      ),
+    );
+  }
+
+  Widget _layoutCelular(List<ProductoVenta> productos) {
+    return RefreshIndicator(
+      color: ColoresApp.principal,
+      backgroundColor: ColoresApp.superficie,
+      onRefresh: _cargarProductos,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            _panelProductos(
+              productos: productos,
+              alturaFija: false,
+              esCelular: true,
+            ),
+            const SizedBox(height: 14),
+            _panelPedido(
+              alturaFija: false,
+              esCelular: true,
+            ),
+            const SizedBox(height: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _layoutEscritorio(List<ProductoVenta> productos) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
         children: [
-          Container(
-            color: ColoresApp.fondoPrincipal,
-            padding: const EdgeInsets.all(20),
+          Expanded(
+            flex: 3,
+            child: _panelProductos(
+              productos: productos,
+              alturaFija: true,
+              esCelular: false,
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            flex: 2,
+            child: _panelPedido(
+              alturaFija: true,
+              esCelular: false,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _panelProductos({
+    required List<ProductoVenta> productos,
+    required bool alturaFija,
+    required bool esCelular,
+  }) {
+    final contenido = Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(esCelular ? 16 : 18),
+      decoration: BoxDecoration(
+        color: ColoresApp.superficie,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.06),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: alturaFija ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          Text(
+            'Productos',
+            style: TextStyle(
+              color: ColoresApp.textoPrincipal,
+              fontSize: esCelular ? 23 : 24,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Empanadas, combos y productos por sección',
+            style: TextStyle(
+              color: ColoresApp.textoSecundario,
+              fontSize: 14,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _selectorSecciones(),
+          const SizedBox(height: 16),
+          _campoBusqueda(),
+          const SizedBox(height: 18),
+          if (alturaFija)
+            Expanded(
+              child: _listaProductos(productos, esCelular),
+            )
+          else
+            _listaProductos(productos, esCelular),
+        ],
+      ),
+    );
+
+    return contenido;
+  }
+
+  Widget _selectorSecciones() {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: SeccionVenta.values.map((seccion) {
+        final activa = _seccionActiva == seccion;
+        final colores = _coloresSeccion(seccion);
+
+        return InkWell(
+          onTap: () {
+            setState(() {
+              _seccionActiva = seccion;
+            });
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              gradient: activa ? LinearGradient(colors: colores) : null,
+              color: activa ? null : ColoresApp.fondoSecundario,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: activa ? Colors.transparent : Colors.white.withOpacity(0.08),
+              ),
+              boxShadow: activa
+                  ? [
+                      BoxShadow(
+                        color: colores.last.withOpacity(0.28),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : null,
+            ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: ColoresApp.superficie,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.06),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Productos',
-                          style: TextStyle(
-                            color: ColoresApp.textoPrincipal,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Empanadas, combos y productos por sección',
-                          style: TextStyle(
-                            color: ColoresApp.textoSecundario,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: SeccionVenta.values.map((seccion) {
-                            final activa = _seccionActiva == seccion;
-                            final colores = _coloresSeccion(seccion);
-
-                            return InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _seccionActiva = seccion;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(14),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 220),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: activa
-                                      ? LinearGradient(colors: colores)
-                                      : null,
-                                  color:
-                                      activa ? null : ColoresApp.fondoSecundario,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: activa
-                                        ? Colors.transparent
-                                        : Colors.white.withOpacity(0.08),
-                                  ),
-                                  boxShadow: activa
-                                      ? [
-                                          BoxShadow(
-                                            color: colores.last.withOpacity(
-                                              0.28,
-                                            ),
-                                            blurRadius: 14,
-                                            offset: const Offset(0, 6),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      _iconoSeccion(seccion),
-                                      size: 18,
-                                      color: activa
-                                          ? Colors.black
-                                          : ColoresApp.textoPrincipal,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      _nombreSeccion(seccion),
-                                      style: TextStyle(
-                                        color: activa
-                                            ? Colors.black
-                                            : ColoresApp.textoPrincipal,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          onChanged: (value) {
-                            setState(() {
-                              _busqueda = value;
-                            });
-                          },
-                          style:
-                              const TextStyle(color: ColoresApp.textoPrincipal),
-                          decoration: InputDecoration(
-                            hintText:
-                                'Buscar en ${_nombreSeccion(_seccionActiva).toLowerCase()}...',
-                            hintStyle: const TextStyle(
-                              color: ColoresApp.textoSecundario,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search_rounded,
-                              color: _colorSuaveSeccion(_seccionActiva),
-                            ),
-                            filled: true,
-                            fillColor: ColoresApp.fondoSecundario,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: _colorSuaveSeccion(_seccionActiva),
-                                width: 1.3,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        Expanded(
-                          child: _productos.isEmpty
-                              ? const Center(
-                                  child: CircularProgressIndicator(
-                                    color: ColoresApp.principal,
-                                  ),
-                                )
-                              : productos.isEmpty
-                                  ? Center(
-                                      child: Text(
-                                        'No hay productos en ${_nombreSeccion(_seccionActiva)}.',
-                                        style: const TextStyle(
-                                          color: ColoresApp.textoSecundario,
-                                          fontSize: 15,
-                                        ),
-                                      ),
-                                    )
-                                  : GridView.builder(
-                                      itemCount: productos.length,
-                                      gridDelegate:
-                                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                                        maxCrossAxisExtent: 250,
-                                        mainAxisExtent: 235,
-                                        crossAxisSpacing: 14,
-                                        mainAxisSpacing: 14,
-                                      ),
-                                      itemBuilder: (context, index) {
-                                        final producto = productos[index];
-
-                                        return TarjetaProductoVenta(
-                                          producto: producto,
-                                          esDueno: _esDueno,
-                                          onAgregar: () =>
-                                              _agregarProducto(producto),
-                                          onEditar: () =>
-                                              _editarProducto(producto),
-                                          onEliminar: () =>
-                                              _eliminarProducto(producto),
-                                        );
-                                      },
-                                    ),
-                        ),
-                      ],
-                    ),
-                  ),
+                Icon(
+                  _iconoSeccion(seccion),
+                  size: 18,
+                  color: activa ? Colors.black : ColoresApp.textoPrincipal,
                 ),
-                const SizedBox(width: 20),
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: ColoresApp.superficie,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.06),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Pedido actual',
-                          style: TextStyle(
-                            color: ColoresApp.textoPrincipal,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Atendido por: ${widget.usuario.nombre}',
-                          style: const TextStyle(
-                            color: ColoresApp.textoSecundario,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        Expanded(
-                          child: _pedido.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'No hay productos agregados.',
-                                    style: TextStyle(
-                                      color: ColoresApp.textoSecundario,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                )
-                              : ListView.separated(
-                                  itemCount: _pedido.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(height: 12),
-                                  itemBuilder: (context, index) {
-                                    final item = _pedido[index];
-
-                                    return TarjetaItemPedido(
-                                      item: item,
-                                      onSumar: () => _sumarCantidad(item),
-                                      onRestar: () => _restarCantidad(item),
-                                      onEliminar: () => _eliminarItem(item),
-                                      onEditarSabores: item.sabores.isNotEmpty
-                                          ? () => _editarSaboresItem(item)
-                                          : null,
-                                    );
-                                  },
-                                ),
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: ColoresApp.fondoSecundario,
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: Column(
-                            children: [
-                              _filaTotal('Subtotal', _subtotal),
-                              const SizedBox(height: 10),
-                              _filaTotal('Total', _subtotal, resaltar: true),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: SizedBox(
-                                height: 52,
-                                child: OutlinedButton(
-                                  onPressed: _limpiarPedido,
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(
-                                      color: Colors.white.withOpacity(0.12),
-                                    ),
-                                    foregroundColor:
-                                        ColoresApp.textoPrincipal,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Limpiar',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w700),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Container(
-                                height: 52,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  gradient:
-                                      LinearGradient(colors: coloresActivos),
-                                ),
-                                child: ElevatedButton(
-                                  onPressed:
-                                      _guardandoVenta ? null : _cobrarPedido,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
-                                    foregroundColor: Colors.black,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                  child: _guardandoVenta
-                                      ? const SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                              Colors.black,
-                                            ),
-                                          ),
-                                        )
-                                      : const Text(
-                                          'Cobrar',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                const SizedBox(width: 8),
+                Text(
+                  _nombreSeccion(seccion),
+                  style: TextStyle(
+                    color: activa ? Colors.black : ColoresApp.textoPrincipal,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
             ),
           ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _campoBusqueda() {
+    return TextField(
+      onChanged: (value) {
+        setState(() {
+          _busqueda = value;
+        });
+      },
+      style: const TextStyle(color: ColoresApp.textoPrincipal),
+      decoration: InputDecoration(
+        hintText: 'Buscar en ${_nombreSeccion(_seccionActiva).toLowerCase()}...',
+        hintStyle: const TextStyle(
+          color: ColoresApp.textoSecundario,
+        ),
+        prefixIcon: Icon(
+          Icons.search_rounded,
+          color: _colorSuaveSeccion(_seccionActiva),
+        ),
+        filled: true,
+        fillColor: ColoresApp.fondoSecundario,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: _colorSuaveSeccion(_seccionActiva),
+            width: 1.3,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _listaProductos(List<ProductoVenta> productos, bool esCelular) {
+    if (_productos.isEmpty) {
+      return SizedBox(
+        height: esCelular ? 220 : null,
+        child: const Center(
+          child: CircularProgressIndicator(
+            color: ColoresApp.principal,
+          ),
+        ),
+      );
+    }
+
+    if (productos.isEmpty) {
+      return SizedBox(
+        height: esCelular ? 180 : null,
+        child: Center(
+          child: Text(
+            'No hay productos en ${_nombreSeccion(_seccionActiva)}.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: ColoresApp.textoSecundario,
+              fontSize: 15,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (esCelular) {
+      return ListView.separated(
+        itemCount: productos.length,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final producto = productos[index];
+
+          return SizedBox(
+            height: 220,
+            child: TarjetaProductoVenta(
+              producto: producto,
+              esDueno: _esDueno,
+              onAgregar: () => _agregarProducto(producto),
+              onEditar: () => _editarProducto(producto),
+              onEliminar: () => _eliminarProducto(producto),
+            ),
+          );
+        },
+      );
+    }
+
+    return GridView.builder(
+      itemCount: productos.length,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 250,
+        mainAxisExtent: 235,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+      ),
+      itemBuilder: (context, index) {
+        final producto = productos[index];
+
+        return TarjetaProductoVenta(
+          producto: producto,
+          esDueno: _esDueno,
+          onAgregar: () => _agregarProducto(producto),
+          onEditar: () => _editarProducto(producto),
+          onEliminar: () => _eliminarProducto(producto),
+        );
+      },
+    );
+  }
+
+  Widget _panelPedido({
+    required bool alturaFija,
+    required bool esCelular,
+  }) {
+    final contenido = Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(esCelular ? 16 : 18),
+      decoration: BoxDecoration(
+        color: ColoresApp.superficie,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.06),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: alturaFija ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          Text(
+            'Pedido actual',
+            style: TextStyle(
+              color: ColoresApp.textoPrincipal,
+              fontSize: esCelular ? 23 : 24,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Atendido por: ${widget.usuario.nombre}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: ColoresApp.textoSecundario,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 18),
+          if (alturaFija)
+            Expanded(
+              child: _listaPedido(esCelular),
+            )
+          else
+            _listaPedido(esCelular),
+          const SizedBox(height: 16),
+          _totalesPedido(),
+          const SizedBox(height: 16),
+          _botonesPedido(esCelular),
         ],
+      ),
+    );
+
+    return contenido;
+  }
+
+  Widget _listaPedido(bool esCelular) {
+    if (_pedido.isEmpty) {
+      return Container(
+        width: double.infinity,
+        height: esCelular ? 130 : null,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: ColoresApp.fondoSecundario,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Text(
+          'No hay productos agregados.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: ColoresApp.textoSecundario,
+            fontSize: 15,
+          ),
+        ),
+      );
+    }
+
+    if (esCelular) {
+      return ListView.separated(
+        itemCount: _pedido.length,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final item = _pedido[index];
+
+          return TarjetaItemPedido(
+            item: item,
+            onSumar: () => _sumarCantidad(item),
+            onRestar: () => _restarCantidad(item),
+            onEliminar: () => _eliminarItem(item),
+            onEditarSabores:
+                item.sabores.isNotEmpty ? () => _editarSaboresItem(item) : null,
+          );
+        },
+      );
+    }
+
+    return ListView.separated(
+      itemCount: _pedido.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final item = _pedido[index];
+
+        return TarjetaItemPedido(
+          item: item,
+          onSumar: () => _sumarCantidad(item),
+          onRestar: () => _restarCantidad(item),
+          onEliminar: () => _eliminarItem(item),
+          onEditarSabores:
+              item.sabores.isNotEmpty ? () => _editarSaboresItem(item) : null,
+        );
+      },
+    );
+  }
+
+  Widget _totalesPedido() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: ColoresApp.fondoSecundario,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          _filaTotal('Subtotal', _subtotal),
+          const SizedBox(height: 10),
+          _filaTotal('Total', _subtotal, resaltar: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _botonesPedido(bool esCelular) {
+    if (esCelular) {
+      return Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: _botonCobrar(),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: _botonLimpiar(),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 52,
+            child: _botonLimpiar(),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: SizedBox(
+            height: 52,
+            child: _botonCobrar(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _botonLimpiar() {
+    return OutlinedButton(
+      onPressed: _limpiarPedido,
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(
+          color: Colors.white.withOpacity(0.12),
+        ),
+        foregroundColor: ColoresApp.textoPrincipal,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+      child: const Text(
+        'Limpiar',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Widget _botonCobrar() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(colors: _coloresSeccion(_seccionActiva)),
+      ),
+      child: ElevatedButton(
+        onPressed: _guardandoVenta ? null : _cobrarPedido,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          foregroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: _guardandoVenta
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.black,
+                  ),
+                ),
+              )
+            : const Text(
+                'Cobrar',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
+              ),
       ),
     );
   }
@@ -761,14 +948,17 @@ class _PaginaVentasState extends State<PaginaVentas> {
             ),
           ),
         ),
-        Text(
-          '\$${valor.toStringAsFixed(2)}',
-          style: TextStyle(
-            color: resaltar
-                ? _colorSuaveSeccion(_seccionActiva)
-                : ColoresApp.textoPrincipal,
-            fontSize: resaltar ? 22 : 16,
-            fontWeight: FontWeight.w800,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '\$${valor.toStringAsFixed(2)}',
+            style: TextStyle(
+              color: resaltar
+                  ? _colorSuaveSeccion(_seccionActiva)
+                  : ColoresApp.textoPrincipal,
+              fontSize: resaltar ? 22 : 16,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ],
