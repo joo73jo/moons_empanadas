@@ -48,6 +48,44 @@ class InsumoRecetaProduccion {
   }
 }
 
+class ProduccionHistorial {
+  final int id;
+  final int productoId;
+  final String productoNombre;
+  final String productoCategoria;
+  final String usuarioNombre;
+  final double cantidadOriginal;
+  final double cantidadProducida;
+  final String observacion;
+  final bool corregida;
+  final DateTime fechaRegistro;
+  final DateTime? fechaUltimaCorreccion;
+  final String usuarioUltimaCorreccion;
+
+  const ProduccionHistorial({
+    required this.id,
+    required this.productoId,
+    required this.productoNombre,
+    required this.productoCategoria,
+    required this.usuarioNombre,
+    required this.cantidadOriginal,
+    required this.cantidadProducida,
+    required this.observacion,
+    required this.corregida,
+    required this.fechaRegistro,
+    required this.fechaUltimaCorreccion,
+    required this.usuarioUltimaCorreccion,
+  });
+
+  bool get fueModificada {
+    return cantidadOriginal != cantidadProducida;
+  }
+
+  double get diferencia {
+    return cantidadProducida - cantidadOriginal;
+  }
+}
+
 class ProduccionSupabase {
   static Future<List<ProductoProduccion>> obtenerProductos() async {
     final productosResponse = await SupabaseCliente.cliente
@@ -65,24 +103,33 @@ class ProduccionSupabase {
         .eq('activo', true);
 
     final Set<int> productosConReceta = recetasResponse
-        .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item as Map))
-        .map<int>((item) => item['producto_id'] as int)
+        .map<Map<String, dynamic>>(
+          (item) => Map<String, dynamic>.from(item as Map),
+        )
+        .map<int>((item) => (item['producto_id'] as num).toInt())
         .toSet();
 
     return productosResponse
-        .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item as Map))
-        .where((item) => productosConReceta.contains(item['id'] as int))
+        .map<Map<String, dynamic>>(
+          (item) => Map<String, dynamic>.from(item as Map),
+        )
+        .where(
+          (item) => productosConReceta.contains(
+            (item['id'] as num).toInt(),
+          ),
+        )
         .map<ProductoProduccion>((item) {
-      return ProductoProduccion(
-        id: item['id'] as int,
-        nombre: (item['nombre'] ?? '').toString(),
-        categoria: (item['categoria'] ?? '').toString(),
-        stockActual: (item['stock_actual'] as num).toDouble(),
-        stockMinimo: (item['stock_minimo'] as num).toDouble(),
-        stockCritico: (item['stock_critico'] as num).toDouble(),
-        controlaStock: item['controla_stock'] as bool? ?? true,
-      );
-    }).toList();
+          return ProductoProduccion(
+            id: (item['id'] as num).toInt(),
+            nombre: (item['nombre'] ?? '').toString(),
+            categoria: (item['categoria'] ?? '').toString(),
+            stockActual: (item['stock_actual'] as num?)?.toDouble() ?? 0,
+            stockMinimo: (item['stock_minimo'] as num?)?.toDouble() ?? 0,
+            stockCritico: (item['stock_critico'] as num?)?.toDouble() ?? 0,
+            controlaStock: item['controla_stock'] as bool? ?? true,
+          );
+        })
+        .toList();
   }
 
   static Future<List<InsumoRecetaProduccion>> obtenerRecetaProducto(
@@ -97,7 +144,8 @@ class ProduccionSupabase {
 
     if (recetas.isEmpty) return [];
 
-    final recetaId = (recetas.first as Map<String, dynamic>)['id'] as int;
+    final receta = Map<String, dynamic>.from(recetas.first as Map);
+    final recetaId = (receta['id'] as num).toInt();
 
     final detallesResponse = await SupabaseCliente.cliente
         .from('receta_detalle')
@@ -105,28 +153,49 @@ class ProduccionSupabase {
           ingrediente_id,
           cantidad,
           unidad_medida,
-          ingrediente:ingredientes(nombre, categoria, stock_actual, activo)
+          ingrediente:ingredientes(
+            nombre,
+            categoria,
+            stock_actual,
+            activo
+          )
         ''')
         .eq('receta_id', recetaId)
         .order('id');
 
     return detallesResponse
-        .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item as Map))
+        .map<Map<String, dynamic>>(
+          (item) => Map<String, dynamic>.from(item as Map),
+        )
         .where((item) {
-      final ingrediente = Map<String, dynamic>.from(item['ingrediente'] as Map);
-      return ingrediente['activo'] == true;
-    }).map<InsumoRecetaProduccion>((item) {
-      final ingrediente = Map<String, dynamic>.from(item['ingrediente'] as Map);
+          final ingredienteRaw = item['ingrediente'];
 
-      return InsumoRecetaProduccion(
-        ingredienteId: item['ingrediente_id'] as int,
-        ingredienteNombre: (ingrediente['nombre'] ?? '').toString(),
-        ingredienteCategoria: (ingrediente['categoria'] ?? '').toString(),
-        unidadMedida: (item['unidad_medida'] ?? '').toString(),
-        cantidadPorUnidad: (item['cantidad'] as num).toDouble(),
-        stockActual: (ingrediente['stock_actual'] as num).toDouble(),
-      );
-    }).toList();
+          if (ingredienteRaw == null) return false;
+
+          final ingrediente = Map<String, dynamic>.from(
+            ingredienteRaw as Map,
+          );
+
+          return ingrediente['activo'] == true;
+        })
+        .map<InsumoRecetaProduccion>((item) {
+          final ingrediente = Map<String, dynamic>.from(
+            item['ingrediente'] as Map,
+          );
+
+          return InsumoRecetaProduccion(
+            ingredienteId: (item['ingrediente_id'] as num).toInt(),
+            ingredienteNombre: (ingrediente['nombre'] ?? '').toString(),
+            ingredienteCategoria:
+                (ingrediente['categoria'] ?? '').toString(),
+            unidadMedida: (item['unidad_medida'] ?? '').toString(),
+            cantidadPorUnidad:
+                (item['cantidad'] as num?)?.toDouble() ?? 0,
+            stockActual:
+                (ingrediente['stock_actual'] as num?)?.toDouble() ?? 0,
+          );
+        })
+        .toList();
   }
 
   static Future<int> obtenerTotalIngredientesCriticos() async {
@@ -139,8 +208,12 @@ class ProduccionSupabase {
 
     for (final item in response) {
       final mapa = Map<String, dynamic>.from(item as Map);
-      final stockActual = (mapa['stock_actual'] as num).toDouble();
-      final stockCritico = (mapa['stock_critico'] as num).toDouble();
+
+      final stockActual =
+          (mapa['stock_actual'] as num?)?.toDouble() ?? 0;
+
+      final stockCritico =
+          (mapa['stock_critico'] as num?)?.toDouble() ?? 0;
 
       if (stockActual <= stockCritico) {
         total++;
@@ -150,110 +223,154 @@ class ProduccionSupabase {
     return total;
   }
 
-  static Future<int> _obtenerUsuarioId(String usuarioLogin) async {
+  static Future<List<ProduccionHistorial>> obtenerProduccionesRecientes({
+    int limite = 50,
+  }) async {
     final response = await SupabaseCliente.cliente
-        .from('usuarios')
-        .select('id')
-        .eq('usuario', usuarioLogin)
-        .eq('activo', true)
-        .single();
+        .from('producciones')
+        .select('''
+          id,
+          producto_id,
+          cantidad_original,
+          cantidad_producida,
+          observacion,
+          corregida,
+          created_at,
+          fecha_ultima_correccion,
+          producto:productos(
+            nombre,
+            categoria
+          ),
+          usuario:usuarios!producciones_usuario_id_fkey(
+            nombre
+          ),
+          usuario_correccion:usuarios!producciones_usuario_ultima_correccion_id_fkey(
+            nombre
+          )
+        ''')
+        .order('created_at', ascending: false)
+        .limit(limite);
 
-    return response['id'] as int;
+    return response.map<ProduccionHistorial>((item) {
+      final mapa = Map<String, dynamic>.from(item as Map);
+
+      final productoRaw = mapa['producto'];
+      final usuarioRaw = mapa['usuario'];
+      final usuarioCorreccionRaw = mapa['usuario_correccion'];
+
+      final producto = productoRaw == null
+          ? <String, dynamic>{}
+          : Map<String, dynamic>.from(productoRaw as Map);
+
+      final usuario = usuarioRaw == null
+          ? <String, dynamic>{}
+          : Map<String, dynamic>.from(usuarioRaw as Map);
+
+      final usuarioCorreccion = usuarioCorreccionRaw == null
+          ? <String, dynamic>{}
+          : Map<String, dynamic>.from(usuarioCorreccionRaw as Map);
+
+      final cantidadProducida =
+          (mapa['cantidad_producida'] as num?)?.toDouble() ?? 0;
+
+      final cantidadOriginal =
+          (mapa['cantidad_original'] as num?)?.toDouble() ??
+          cantidadProducida;
+
+      return ProduccionHistorial(
+        id: (mapa['id'] as num).toInt(),
+        productoId: (mapa['producto_id'] as num).toInt(),
+        productoNombre: (producto['nombre'] ?? 'Producto').toString(),
+        productoCategoria: (producto['categoria'] ?? '').toString(),
+        usuarioNombre: (usuario['nombre'] ?? 'Usuario').toString(),
+        cantidadOriginal: cantidadOriginal,
+        cantidadProducida: cantidadProducida,
+        observacion: (mapa['observacion'] ?? '').toString(),
+        corregida: mapa['corregida'] as bool? ?? false,
+        fechaRegistro: _convertirFecha(mapa['created_at']),
+        fechaUltimaCorreccion:
+            mapa['fecha_ultima_correccion'] == null
+            ? null
+            : _convertirFecha(mapa['fecha_ultima_correccion']),
+        usuarioUltimaCorreccion:
+            (usuarioCorreccion['nombre'] ?? '').toString(),
+      );
+    }).toList();
   }
 
-  static Future<void> registrarProduccion({
+  static DateTime _convertirFecha(dynamic valor) {
+    if (valor is DateTime) return valor;
+
+    final texto = valor?.toString() ?? '';
+
+    return DateTime.tryParse(texto) ?? DateTime.now();
+  }
+
+  static Future<int> registrarProduccion({
     required ProductoProduccion producto,
     required double cantidadProducida,
     required String usuarioLogin,
     required String observacion,
   }) async {
     if (cantidadProducida <= 0) {
-      throw Exception('La cantidad producida debe ser mayor a cero.');
+      throw Exception(
+        'La cantidad producida debe ser mayor a cero.',
+      );
     }
 
-    final usuarioId = await _obtenerUsuarioId(usuarioLogin);
-    final receta = await obtenerRecetaProducto(producto.id);
+    final resultado = await SupabaseCliente.cliente.rpc(
+      'registrar_produccion',
+      params: {
+        'p_producto_id': producto.id,
+        'p_cantidad_producida': cantidadProducida,
+        'p_usuario_login': usuarioLogin.trim(),
+        'p_observacion': observacion.trim().isEmpty
+            ? null
+            : observacion.trim(),
+      },
+    );
 
-    if (receta.isEmpty) {
-      throw Exception('El producto no tiene receta configurada.');
+    if (resultado is int) {
+      return resultado;
     }
 
-    for (final insumo in receta) {
-      final consumo = insumo.consumoPara(cantidadProducida);
-      if (consumo > insumo.stockActual) {
-        throw Exception(
-          'Stock insuficiente de ${insumo.ingredienteNombre}. Necesitas ${consumo.toStringAsFixed(3)} ${insumo.unidadMedida} y solo hay ${insumo.stockActual.toStringAsFixed(3)}.',
-        );
-      }
+    if (resultado is num) {
+      return resultado.toInt();
     }
 
-    final productoActualResponse = await SupabaseCliente.cliente
-        .from('productos')
-        .select('id, nombre, stock_actual')
-        .eq('id', producto.id)
-        .single();
+    return int.tryParse(resultado.toString()) ?? 0;
+  }
 
-    final productoActual = Map<String, dynamic>.from(productoActualResponse);
-    final stockProductoAnterior =
-        (productoActual['stock_actual'] as num).toDouble();
-
-    final produccionInsertada = await SupabaseCliente.cliente
-        .from('producciones')
-        .insert({
-          'producto_id': producto.id,
-          'usuario_id': usuarioId,
-          'cantidad_producida': cantidadProducida,
-          'observacion': observacion.trim().isEmpty ? null : observacion.trim(),
-        })
-        .select('id')
-        .single();
-
-    final produccionId = produccionInsertada['id'] as int;
-
-    for (final insumo in receta) {
-      final consumo = insumo.consumoPara(cantidadProducida);
-      final stockNuevo = insumo.stockActual - consumo;
-
-      await SupabaseCliente.cliente
-          .from('ingredientes')
-          .update({'stock_actual': stockNuevo})
-          .eq('id', insumo.ingredienteId);
-
-      await SupabaseCliente.cliente.from('movimientos_stock').insert({
-        'tipo_item': 'ingrediente',
-        'item_id': insumo.ingredienteId,
-        'tipo_movimiento': 'produccion_consumo',
-        'cantidad': consumo,
-        'unidad_medida': insumo.unidadMedida,
-        'stock_anterior': insumo.stockActual,
-        'stock_nuevo': stockNuevo,
-        'motivo':
-            'Producción de ${producto.nombre} (${cantidadProducida.toStringAsFixed(3)})',
-        'referencia_tabla': 'producciones',
-        'referencia_id': produccionId,
-        'usuario_id': usuarioId,
-      });
+  static Future<void> corregirProduccion({
+    required int produccionId,
+    required double cantidadNueva,
+    required String usuarioLogin,
+    required String motivo,
+    required String observacionNueva,
+  }) async {
+    if (cantidadNueva <= 0) {
+      throw Exception(
+        'La nueva cantidad debe ser mayor a cero.',
+      );
     }
 
-    final stockProductoNuevo = stockProductoAnterior + cantidadProducida;
+    if (motivo.trim().isEmpty) {
+      throw Exception(
+        'Debes escribir el motivo de la corrección.',
+      );
+    }
 
-    await SupabaseCliente.cliente
-        .from('productos')
-        .update({'stock_actual': stockProductoNuevo})
-        .eq('id', producto.id);
-
-    await SupabaseCliente.cliente.from('movimientos_stock').insert({
-      'tipo_item': 'producto',
-      'item_id': producto.id,
-      'tipo_movimiento': 'produccion_ingreso',
-      'cantidad': cantidadProducida,
-      'unidad_medida': 'unidad',
-      'stock_anterior': stockProductoAnterior,
-      'stock_nuevo': stockProductoNuevo,
-      'motivo': 'Producción registrada de ${producto.nombre}',
-      'referencia_tabla': 'producciones',
-      'referencia_id': produccionId,
-      'usuario_id': usuarioId,
-    });
+    await SupabaseCliente.cliente.rpc(
+      'corregir_produccion',
+      params: {
+        'p_produccion_id': produccionId,
+        'p_cantidad_nueva': cantidadNueva,
+        'p_usuario_login': usuarioLogin.trim(),
+        'p_motivo': motivo.trim(),
+        'p_observacion_nueva': observacionNueva.trim().isEmpty
+            ? null
+            : observacionNueva.trim(),
+      },
+    );
   }
 }

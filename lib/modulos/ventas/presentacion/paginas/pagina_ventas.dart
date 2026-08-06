@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../nucleo/tema/colores_app.dart';
 import '../../../autenticacion/dominio/modelos/usuario.dart';
 import '../widgets/dialogo_cobro.dart';
@@ -19,82 +20,55 @@ class PaginaVentas extends StatefulWidget {
   });
 
   @override
-  State<PaginaVentas> createState() => _PaginaVentasState();
+  State<PaginaVentas> createState() =>
+      _PaginaVentasState();
 }
 
 class _PaginaVentasState extends State<PaginaVentas> {
-  late List<ProductoVenta> _productos;
+  List<ProductoVenta> _productos = [];
+
   List<PedidoPreparacion> _pedidosPreparacion = [];
+
+  List<PedidoPreparacion> _pedidosNoEnviados = [];
+
+  List<RecargoConfiguracion> _recargosDisponibles = [];
 
   final List<ItemPedido> _pedido = [];
 
+  final Set<String> _categoriasAbiertas = {};
+
   String _busqueda = '';
-  SeccionVenta _seccionActiva = SeccionVenta.individuales;
+
+  SeccionVenta _seccionActiva =
+      SeccionVenta.individuales;
+
   bool _guardandoVenta = false;
+
   bool _modoPreparacion = false;
+
   bool _cargandoPreparacion = false;
 
-  bool get _esDueno => widget.usuario.rol == 'dueno';
-
-  @override
-  void initState() {
-    super.initState();
-    _productos = [];
-    _cargarProductos();
-    _cargarPreparacion();
+  bool get _esDueno {
+    return widget.usuario.rol == 'dueno';
   }
 
-  Future<void> _cargarProductos() async {
-    try {
-      final productos = await ProductosSupabase.obtenerProductos();
-
-      if (!mounted) return;
-
-      setState(() {
-        _productos = productos;
-      });
-    } catch (e) {
-      debugPrint('ERROR PRODUCTOS SUPABASE: $e');
-      _mostrarMensaje('Error cargando productos desde Supabase: $e');
-    }
-  }
-
-  Future<void> _cargarPreparacion() async {
-    setState(() {
-      _cargandoPreparacion = true;
-    });
-
-    try {
-      final pedidos = await VentasSupabase.obtenerPedidosPreparacion();
-
-      if (!mounted) return;
-
-      setState(() {
-        _pedidosPreparacion = pedidos;
-        _cargandoPreparacion = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _cargandoPreparacion = false;
-      });
-
-      _mostrarMensaje('Error cargando preparación: $e');
-    }
-  }
-
-  Future<void> _refrescarTodo() async {
-    await _cargarProductos();
-    await _cargarPreparacion();
+  double get _subtotal {
+    return _pedido.fold(
+      0,
+      (total, item) => total + item.subtotal,
+    );
   }
 
   List<ProductoVenta> get _productosFiltrados {
+    final busqueda = _busqueda.trim().toLowerCase();
+
     return _productos.where((producto) {
-      final coincideSeccion = producto.seccion == _seccionActiva;
-      final coincideBusqueda = _busqueda.trim().isEmpty ||
-          producto.nombre.toLowerCase().contains(_busqueda.toLowerCase()) ||
-          producto.categoria.toLowerCase().contains(_busqueda.toLowerCase());
+      final coincideSeccion =
+          producto.seccion == _seccionActiva;
+
+      final coincideBusqueda = busqueda.isEmpty ||
+          producto.nombre.toLowerCase().contains(busqueda) ||
+          producto.categoria.toLowerCase().contains(busqueda);
 
       return coincideSeccion && coincideBusqueda;
     }).toList();
@@ -102,49 +76,168 @@ class _PaginaVentasState extends State<PaginaVentas> {
 
   List<ProductoVenta> get _saboresEmpanadas {
     return _productos.where((producto) {
-      return producto.seccion == SeccionVenta.individuales &&
-          producto.categoria.toLowerCase() == 'empanadas';
+      return producto.seccion ==
+              SeccionVenta.individuales &&
+          producto.categoria.toLowerCase() ==
+              'empanadas';
     }).toList();
   }
 
-  double get _subtotal {
-    return _pedido.fold(0, (total, item) => total + item.subtotal);
+  @override
+  void initState() {
+    super.initState();
+
+    _cargarTodo();
   }
 
-  String _nombreSeccion(SeccionVenta seccion) {
+  Future<void> _cargarTodo() async {
+    await Future.wait([
+      _cargarProductos(),
+      _cargarRecargos(),
+      _cargarPreparacion(),
+    ]);
+  }
+
+  Future<void> _cargarProductos() async {
+    try {
+      final productos =
+          await ProductosSupabase.obtenerProductos();
+
+      if (!mounted) return;
+
+      setState(() {
+        _productos = productos;
+
+        if (_categoriasAbiertas.isEmpty) {
+          _categoriasAbiertas.addAll(
+            productos.map(
+              (producto) => _normalizarCategoria(
+                producto.categoria,
+              ),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        'Error cargando productos: $e',
+      );
+    }
+  }
+
+  Future<void> _cargarRecargos() async {
+    try {
+      final recargos =
+          await VentasSupabase.obtenerRecargosConfiguracion();
+
+      if (!mounted) return;
+
+      setState(() {
+        _recargosDisponibles = recargos;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        'Error cargando recargos: $e',
+      );
+    }
+  }
+
+  Future<void> _cargarPreparacion() async {
+    if (mounted) {
+      setState(() {
+        _cargandoPreparacion = true;
+      });
+    }
+
+    try {
+      final resultados = await Future.wait([
+        VentasSupabase.obtenerPedidosPreparacion(),
+        VentasSupabase.obtenerPedidosNoEnviados(),
+      ]);
+
+      if (!mounted) return;
+
+      setState(() {
+        _pedidosPreparacion = resultados[0];
+        _pedidosNoEnviados = resultados[1];
+        _cargandoPreparacion = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _cargandoPreparacion = false;
+      });
+
+      _mostrarMensaje(
+        'Error cargando pedidos: $e',
+      );
+    }
+  }
+
+  Future<void> _refrescarTodo() async {
+    await _cargarTodo();
+  }
+
+  bool _esCelular(BuildContext context) {
+    return MediaQuery.of(context).size.width < 760;
+  }
+
+  String _formatearHora(DateTime fecha) {
+    final hora =
+        fecha.hour.toString().padLeft(2, '0');
+
+    final minuto =
+        fecha.minute.toString().padLeft(2, '0');
+
+    return '$hora:$minuto';
+  }
+
+  String _nombreSeccion(
+    SeccionVenta seccion,
+  ) {
     switch (seccion) {
       case SeccionVenta.individuales:
         return 'Individuales';
+
       case SeccionVenta.combos:
         return 'Combos';
+
       case SeccionVenta.uber:
         return 'Uber';
     }
   }
 
-  IconData _iconoSeccion(SeccionVenta seccion) {
+  IconData _iconoSeccion(
+    SeccionVenta seccion,
+  ) {
     switch (seccion) {
       case SeccionVenta.individuales:
         return Icons.fastfood_rounded;
+
       case SeccionVenta.combos:
         return Icons.local_offer_rounded;
+
       case SeccionVenta.uber:
         return Icons.delivery_dining_rounded;
     }
   }
 
-  List<Color> _coloresSeccion(SeccionVenta seccion) {
+  List<Color> _coloresSeccion(
+    SeccionVenta seccion,
+  ) {
     switch (seccion) {
       case SeccionVenta.individuales:
-        return const [
-          ColoresApp.principalClaro,
-          ColoresApp.principal,
-        ];
       case SeccionVenta.combos:
         return const [
           ColoresApp.principalClaro,
           ColoresApp.principal,
         ];
+
       case SeccionVenta.uber:
         return const [
           Color(0xFF06D6A0),
@@ -153,36 +246,30 @@ class _PaginaVentasState extends State<PaginaVentas> {
     }
   }
 
-  Color _colorSuaveSeccion(SeccionVenta seccion) {
+  Color _colorSuaveSeccion(
+    SeccionVenta seccion,
+  ) {
     switch (seccion) {
       case SeccionVenta.individuales:
-        return const Color(0xFFD99A1B);
       case SeccionVenta.combos:
         return const Color(0xFFD99A1B);
+
       case SeccionVenta.uber:
         return const Color(0xFF00A896);
     }
   }
 
-  bool _esCelular(BuildContext context) {
-    return MediaQuery.of(context).size.width < 760;
-  }
-
-  String _formatearHora(DateTime fecha) {
-    final hh = fecha.hour.toString().padLeft(2, '0');
-    final mm = fecha.minute.toString().padLeft(2, '0');
-    return '$hh:$mm';
-  }
-
   void _mostrarMensaje(String mensaje) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context)
+        .hideCurrentSnackBar();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           mensaje,
           style: const TextStyle(
             color: Colors.black,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
         backgroundColor: ColoresApp.principal,
@@ -191,36 +278,55 @@ class _PaginaVentasState extends State<PaginaVentas> {
     );
   }
 
-  Future<List<String>?> _seleccionarSabores(ProductoVenta producto) {
-    if (_saboresEmpanadas.isEmpty) {
-      _mostrarMensaje('No hay empanadas disponibles para seleccionar sabores.');
+  Future<ResultadoSeleccionCombo?> _seleccionarCombo(
+    ProductoVenta producto,
+  ) {
+    if (producto.componentesCombo.isEmpty) {
+      _mostrarMensaje(
+        'Este combo no tiene componentes configurados. Edítalo antes de venderlo.',
+      );
+
       return Future.value(null);
     }
 
-    return showDialog<List<String>>(
+    return showDialog<ResultadoSeleccionCombo>(
       context: context,
       builder: (_) => DialogoComboSabores(
         combo: producto,
-        saboresDisponibles: _saboresEmpanadas,
       ),
     );
   }
 
-  Future<void> _agregarProducto(ProductoVenta producto) async {
+  Future<void> _agregarProducto(
+    ProductoVenta producto,
+  ) async {
     List<String> sabores = [];
+    List<EleccionComponenteCombo> eleccionesCombo = [];
 
-    if (producto.requiereSabores) {
-      final seleccion = await _seleccionarSabores(producto);
+    if (producto.esCombo) {
+      final seleccion =
+          await _seleccionarCombo(producto);
 
-      if (seleccion == null || seleccion.isEmpty) {
+      if (seleccion == null ||
+          seleccion.elecciones.isEmpty) {
         return;
       }
 
-      sabores = seleccion;
+      eleccionesCombo = seleccion.elecciones;
+    } else if (producto.requiereSabores) {
+      _mostrarMensaje(
+        'Este producto usa la selección antigua de sabores. Edítalo y configúralo como combo para venderlo correctamente.',
+      );
+
+      return;
     }
 
     final index = _pedido.indexWhere(
-      (item) => item.mismaConfiguracion(producto, sabores),
+      (item) => item.mismaConfiguracion(
+        producto,
+        sabores,
+        otrasEleccionesCombo: eleccionesCombo,
+      ),
     );
 
     setState(() {
@@ -232,24 +338,36 @@ class _PaginaVentasState extends State<PaginaVentas> {
             producto: producto,
             cantidad: 1,
             sabores: sabores,
+            eleccionesCombo: eleccionesCombo,
           ),
         );
       }
     });
   }
 
-  Future<void> _editarSaboresItem(ItemPedido item) async {
-    final seleccion = await _seleccionarSabores(item.producto);
+  Future<void> _editarConfiguracionItem(
+    ItemPedido item,
+  ) async {
+    if (!item.producto.esCombo) {
+      return;
+    }
 
-    if (seleccion == null || seleccion.isEmpty) {
+    final seleccion =
+        await _seleccionarCombo(item.producto);
+
+    if (seleccion == null ||
+        seleccion.elecciones.isEmpty) {
       return;
     }
 
     setState(() {
-      item.sabores = seleccion;
+      item.eleccionesCombo = seleccion.elecciones;
+      item.sabores = [];
     });
 
-    _mostrarMensaje('Sabores actualizados.');
+    _mostrarMensaje(
+      'Configuración del combo actualizada.',
+    );
   }
 
   void _sumarCantidad(ItemPedido item) {
@@ -280,35 +398,69 @@ class _PaginaVentasState extends State<PaginaVentas> {
     });
   }
 
-  Future<void> _cobrarPedido() async {
+  Future<void> _finalizarPedido() async {
     if (_pedido.isEmpty) {
-      _mostrarMensaje('No hay productos en el pedido.');
+      _mostrarMensaje(
+        'No hay productos en el pedido.',
+      );
+
       return;
     }
 
-    final existeCajaAbierta = await VentasSupabase.hayCajaAbierta();
+    final existeCajaAbierta =
+        await VentasSupabase.hayCajaAbierta();
+
     if (!existeCajaAbierta) {
-      _mostrarMensaje('Primero debes abrir caja.');
+      _mostrarMensaje(
+        'Primero debes abrir caja.',
+      );
+
       return;
     }
 
-    final resultado = await showDialog<ResultadoCobro>(
+    if (!mounted) return;
+
+    final resultado =
+        await showDialog<ResultadoCobro>(
       context: context,
-      builder: (_) => DialogoCobro(total: _subtotal),
+      builder: (_) => DialogoCobro(
+        subtotal: _subtotal,
+        recargosDisponibles:
+            _recargosDisponibles,
+      ),
     );
 
     if (resultado == null) return;
+
+    final datosPedido = resultado.datosPedido;
+
+    if (datosPedido == null) {
+      _mostrarMensaje(
+        'No se recibieron los datos del pedido.',
+      );
+
+      return;
+    }
+
+    final items =
+        List<ItemPedido>.from(_pedido);
+
+    final subtotalActual = _subtotal;
 
     setState(() {
       _guardandoVenta = true;
     });
 
     try {
-      await VentasSupabase.guardarVenta(
+      await VentasSupabase.guardarPedido(
         usuarioLogin: widget.usuario.usuario,
-        resultadoCobro: resultado,
-        items: List<ItemPedido>.from(_pedido),
-        subtotal: _subtotal,
+        resultadoCobro:
+            resultado.cobroRealizado
+                ? resultado
+                : null,
+        items: items,
+        subtotal: subtotalActual,
+        datosPedido: datosPedido,
       );
 
       if (!mounted) return;
@@ -320,7 +472,26 @@ class _PaginaVentasState extends State<PaginaVentas> {
 
       await _refrescarTodo();
 
-      _mostrarMensaje('Venta guardada y enviada a preparación.');
+      if (!mounted) return;
+
+      if (datosPedido.enviarPreparacion &&
+          resultado.cobroRealizado) {
+        _mostrarMensaje(
+          'Pedido cobrado y enviado a preparación.',
+        );
+      } else if (datosPedido.enviarPreparacion) {
+        _mostrarMensaje(
+          'Pedido enviado a preparación. El cobro quedó pendiente.',
+        );
+      } else if (resultado.cobroRealizado) {
+        _mostrarMensaje(
+          'Pedido cobrado y guardado para enviar después.',
+        );
+      } else {
+        _mostrarMensaje(
+          'Pedido guardado. Cobro y preparación pendientes.',
+        );
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -328,68 +499,285 @@ class _PaginaVentasState extends State<PaginaVentas> {
         _guardandoVenta = false;
       });
 
-      _mostrarMensaje('Error guardando venta: $e');
+      _mostrarMensaje(
+        'Error guardando pedido: $e',
+      );
+    }
+  }
+
+  Future<void> _cobrarPedidoPendiente(
+    PedidoPreparacion pedido,
+  ) async {
+    final existeCajaAbierta =
+        await VentasSupabase.hayCajaAbierta();
+
+    if (!existeCajaAbierta) {
+      _mostrarMensaje(
+        'Primero debes abrir caja.',
+      );
+
+      return;
+    }
+
+    if (!mounted) return;
+
+    final resultado =
+        await showDialog<ResultadoCobro>(
+      context: context,
+      builder: (_) => DialogoCobro(
+        total: pedido.total,
+        soloCobro: true,
+        nombrePedido: pedido.nombrePedido,
+      ),
+    );
+
+    if (resultado == null) return;
+
+    try {
+      await VentasSupabase.cobrarVentaPendiente(
+        ventaId: pedido.id,
+        resultadoCobro: resultado,
+      );
+
+      await _cargarPreparacion();
+
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        '${pedido.nombrePedido} cobrado correctamente.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        'Error cobrando el pedido: $e',
+      );
+    }
+  }
+
+  Future<void> _enviarPedidoPreparacion(
+    PedidoPreparacion pedido,
+  ) async {
+    try {
+      await VentasSupabase.enviarPedidoPreparacion(
+        pedido.id,
+      );
+
+      await _cargarPreparacion();
+
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        '${pedido.nombrePedido} enviado a preparación.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        'Error enviando el pedido: $e',
+      );
+    }
+  }
+
+  Future<void> _marcarPedidoListo(
+    PedidoPreparacion pedido,
+  ) async {
+    try {
+      await VentasSupabase.marcarPedidoListo(
+        pedido.id,
+      );
+
+      await _cargarPreparacion();
+
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        '${pedido.nombrePedido} marcado como listo.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        'Error marcando el pedido como listo: $e',
+      );
+    }
+  }
+
+  Future<void> _marcarDineroEntregado(
+    PedidoPreparacion pedido,
+  ) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: ColoresApp.superficie,
+        title: const Text(
+          'Confirmar entrega',
+          style: TextStyle(
+            color: ColoresApp.textoPrincipal,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        content: Text(
+          '¿Confirmas que ${pedido.responsableDinero} entregó el dinero de ${pedido.nombrePedido}?',
+          style: const TextStyle(
+            color: ColoresApp.textoSecundario,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context, false);
+            },
+            child: const Text(
+              'Cancelar',
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context, true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  ColoresApp.principal,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text(
+              'Confirmar',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      await VentasSupabase.marcarDineroEntregado(
+        pedido.id,
+      );
+
+      await _cargarPreparacion();
+
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        'Dinero marcado como entregado.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        'Error actualizando el dinero: $e',
+      );
     }
   }
 
   Future<void> _nuevoProducto() async {
-    final resultado = await showDialog<ProductoVenta>(
+    final resultado =
+        await showDialog<ProductoVenta>(
       context: context,
-      builder: (_) => const DialogoProductoVenta(),
+      builder: (_) =>
+          const DialogoProductoVenta(),
     );
 
     if (resultado == null) return;
 
     try {
-      final productoCreado = await ProductosSupabase.crearProducto(resultado);
-
-      if (!mounted) return;
-
-      setState(() {
-        _productos.add(productoCreado);
-      });
-
-      _mostrarMensaje('Producto creado.');
-    } catch (e) {
-      _mostrarMensaje('Error creando producto en Supabase.');
-    }
-  }
-
-  Future<void> _editarProducto(ProductoVenta producto) async {
-    final resultado = await showDialog<ProductoVenta>(
-      context: context,
-      builder: (_) => DialogoProductoVenta(producto: producto),
-    );
-
-    if (resultado == null) return;
-
-    try {
-      final productoActualizado = await ProductosSupabase.actualizarProducto(
-        resultado.copyWith(id: producto.id),
+      final productoCreado =
+          await ProductosSupabase.crearProducto(
+        resultado,
       );
 
       if (!mounted) return;
 
       setState(() {
-        final index = _productos.indexWhere((p) => p.id == producto.id);
+        _productos.add(productoCreado);
+        _categoriasAbiertas.add(
+          _normalizarCategoria(
+            productoCreado.categoria,
+          ),
+        );
+      });
+
+      _mostrarMensaje(
+        'Producto creado.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        'Error creando producto: $e',
+      );
+    }
+  }
+
+  Future<void> _editarProducto(
+    ProductoVenta producto,
+  ) async {
+    final resultado =
+        await showDialog<ProductoVenta>(
+      context: context,
+      builder: (_) => DialogoProductoVenta(
+        producto: producto,
+      ),
+    );
+
+    if (resultado == null) return;
+
+    try {
+      final productoActualizado =
+          await ProductosSupabase
+              .actualizarProducto(
+        resultado.copyWith(
+          id: producto.id,
+        ),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        final index = _productos.indexWhere(
+          (item) => item.id == producto.id,
+        );
+
         if (index >= 0) {
-          _productos[index] = productoActualizado;
+          _productos[index] =
+              productoActualizado;
         }
 
+        _categoriasAbiertas.add(
+          _normalizarCategoria(
+            productoActualizado.categoria,
+          ),
+        );
+
         for (final item in _pedido) {
-          if (item.producto.id == producto.id) {
-            item.producto = productoActualizado;
+          if (item.producto.id ==
+              producto.id) {
+            item.producto =
+                productoActualizado;
           }
         }
       });
 
-      _mostrarMensaje('Producto actualizado.');
+      _mostrarMensaje(
+        'Producto actualizado.',
+      );
     } catch (e) {
-      _mostrarMensaje('Error actualizando producto en Supabase.');
+      if (!mounted) return;
+
+      _mostrarMensaje(
+        'Error actualizando producto: $e',
+      );
     }
   }
 
-  Future<void> _eliminarProducto(ProductoVenta producto) async {
+  Future<void> _eliminarProducto(
+    ProductoVenta producto,
+  ) async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -402,32 +790,33 @@ class _PaginaVentasState extends State<PaginaVentas> {
           ),
         ),
         content: Text(
-          '¿Seguro que deseas eliminar "${producto.nombre}"?\n\nYa no aparecerá como producto activo.',
+          '¿Seguro que deseas eliminar "${producto.nombre}"?',
           style: const TextStyle(
             color: ColoresApp.textoSecundario,
-            height: 1.35,
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () {
+              Navigator.pop(context, false);
+            },
             child: const Text(
               'Cancelar',
-              style: TextStyle(
-                color: ColoresApp.textoSecundario,
-                fontWeight: FontWeight.w700,
-              ),
             ),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              Navigator.pop(context, true);
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
               foregroundColor: Colors.white,
             ),
             child: const Text(
-              'Sí, eliminar',
-              style: TextStyle(fontWeight: FontWeight.w900),
+              'Eliminar',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
@@ -437,41 +826,41 @@ class _PaginaVentasState extends State<PaginaVentas> {
     if (confirmar != true) return;
 
     try {
-      await ProductosSupabase.eliminarProducto(producto.id);
+      await ProductosSupabase.eliminarProducto(
+        producto.id,
+      );
 
       if (!mounted) return;
 
       setState(() {
-        _productos.removeWhere((p) => p.id == producto.id);
-        _pedido.removeWhere((item) => item.producto.id == producto.id);
+        _productos.removeWhere(
+          (item) => item.id == producto.id,
+        );
+
+        _pedido.removeWhere(
+          (item) =>
+              item.producto.id == producto.id,
+        );
       });
 
-      _mostrarMensaje('Producto eliminado.');
+      _mostrarMensaje(
+        'Producto eliminado.',
+      );
     } catch (e) {
-      _mostrarMensaje('Error eliminando producto en Supabase.');
-    }
-  }
-
-  Future<void> _marcarPedidoListo(PedidoPreparacion pedido) async {
-    try {
-      await VentasSupabase.marcarPedidoListo(pedido.id);
-
       if (!mounted) return;
 
-      setState(() {
-        _pedidosPreparacion.removeWhere((p) => p.id == pedido.id);
-      });
-
-      _mostrarMensaje('Pedido #${pedido.id} marcado como listo.');
-    } catch (e) {
-      _mostrarMensaje('Error marcando pedido como listo: $e');
+      _mostrarMensaje(
+        'Error eliminando producto: $e',
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final productos = _productosFiltrados;
-    final esCelular = _esCelular(context);
+
+    final esCelular =
+        _esCelular(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -481,44 +870,25 @@ class _PaginaVentasState extends State<PaginaVentas> {
         ),
         actions: [
           if (_esDueno)
-            esCelular
-                ? IconButton(
-                    onPressed: _nuevoProducto,
-                    icon: const Icon(
-                      Icons.add_circle_outline_rounded,
-                      color: ColoresApp.principal,
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: TextButton.icon(
-                      onPressed: _nuevoProducto,
-                      icon: const Icon(
-                        Icons.add_circle_outline_rounded,
-                        color: ColoresApp.principal,
-                      ),
-                      label: const Text(
-                        'Nuevo producto',
-                        style: TextStyle(
-                          color: ColoresApp.textoPrincipal,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
+            IconButton(
+              tooltip: 'Nuevo producto',
+              onPressed: _nuevoProducto,
+              icon: const Icon(
+                Icons.add_circle_outline_rounded,
+                color: ColoresApp.principal,
+              ),
+            ),
           Padding(
-            padding: EdgeInsets.only(right: esCelular ? 10 : 16),
+            padding:
+                const EdgeInsets.only(right: 14),
             child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: esCelular ? 92 : 180),
-                child: Text(
-                  widget.usuario.nombre,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: ColoresApp.textoSecundario,
-                    fontWeight: FontWeight.w600,
-                  ),
+              child: Text(
+                widget.usuario.nombre,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color:
+                      ColoresApp.textoSecundario,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -536,13 +906,17 @@ class _PaginaVentasState extends State<PaginaVentas> {
     );
   }
 
-  Widget _layoutCelular(List<ProductoVenta> productos) {
+  Widget _layoutCelular(
+    List<ProductoVenta> productos,
+  ) {
     return RefreshIndicator(
       color: ColoresApp.principal,
-      backgroundColor: ColoresApp.superficie,
+      backgroundColor:
+          ColoresApp.superficie,
       onRefresh: _refrescarTodo,
       child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics:
+            const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
@@ -556,14 +930,15 @@ class _PaginaVentasState extends State<PaginaVentas> {
               alturaFija: false,
               esCelular: true,
             ),
-            const SizedBox(height: 18),
           ],
         ),
       ),
     );
   }
 
-  Widget _layoutEscritorio(List<ProductoVenta> productos) {
+  Widget _layoutEscritorio(
+    List<ProductoVenta> productos,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Row(
@@ -596,20 +971,28 @@ class _PaginaVentasState extends State<PaginaVentas> {
   }) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(esCelular ? 16 : 18),
+      padding: EdgeInsets.all(
+        esCelular ? 16 : 18,
+      ),
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius:
+            BorderRadius.circular(24),
         border: Border.all(
           color: Colors.white.withOpacity(0.06),
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: alturaFija ? MainAxisSize.max : MainAxisSize.min,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        mainAxisSize: alturaFija
+            ? MainAxisSize.max
+            : MainAxisSize.min,
         children: [
           Text(
-            _modoPreparacion ? 'Preparación' : 'Productos',
+            _modoPreparacion
+                ? 'Pedidos'
+                : 'Productos',
             style: TextStyle(
               color: ColoresApp.textoPrincipal,
               fontSize: esCelular ? 23 : 24,
@@ -619,12 +1002,11 @@ class _PaginaVentasState extends State<PaginaVentas> {
           const SizedBox(height: 8),
           Text(
             _modoPreparacion
-                ? 'Pedidos cobrados pendientes por preparar'
-                : 'Empanadas, combos y productos por sección',
+                ? 'Pedidos pendientes de preparación, cobro o envío'
+                : 'Selecciona los productos del pedido',
             style: const TextStyle(
               color: ColoresApp.textoSecundario,
               fontSize: 14,
-              height: 1.25,
             ),
           ),
           const SizedBox(height: 16),
@@ -638,13 +1020,23 @@ class _PaginaVentasState extends State<PaginaVentas> {
           if (alturaFija)
             Expanded(
               child: _modoPreparacion
-                  ? _listaPreparacion(esCelular)
-                  : _listaProductos(productos, esCelular),
+                  ? _listaGestionPedidos(
+                      esCelular,
+                    )
+                  : _listaProductos(
+                      productos,
+                      esCelular,
+                    ),
+            )
+          else if (_modoPreparacion)
+            _listaGestionPedidos(
+              esCelular,
             )
           else
-            _modoPreparacion
-                ? _listaPreparacion(esCelular)
-                : _listaProductos(productos, esCelular),
+            _listaProductos(
+              productos,
+              esCelular,
+            ),
         ],
       ),
     );
@@ -655,149 +1047,136 @@ class _PaginaVentasState extends State<PaginaVentas> {
       spacing: 10,
       runSpacing: 10,
       children: [
-        ...SeccionVenta.values.map((seccion) {
-          final activa = !_modoPreparacion && _seccionActiva == seccion;
-          final colores = _coloresSeccion(seccion);
+        ...SeccionVenta.values.map(
+          (seccion) {
+            final activa =
+                !_modoPreparacion &&
+                    _seccionActiva == seccion;
 
-          return InkWell(
-            onTap: () {
-              setState(() {
-                _modoPreparacion = false;
-                _seccionActiva = seccion;
-              });
-            },
-            borderRadius: BorderRadius.circular(14),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
-              decoration: BoxDecoration(
-                gradient: activa ? LinearGradient(colors: colores) : null,
-                color: activa ? null : ColoresApp.fondoSecundario,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color:
-                      activa ? Colors.transparent : Colors.white.withOpacity(0.08),
-                ),
-                boxShadow: activa
-                    ? [
-                        BoxShadow(
-                          color: colores.last.withOpacity(0.28),
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _iconoSeccion(seccion),
-                    size: 18,
-                    color: activa ? Colors.black : ColoresApp.textoPrincipal,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _nombreSeccion(seccion),
-                    style: TextStyle(
-                      color: activa ? Colors.black : ColoresApp.textoPrincipal,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-        InkWell(
+            return _botonSeccion(
+              texto: _nombreSeccion(seccion),
+              icono: _iconoSeccion(seccion),
+              activo: activa,
+              colores: _coloresSeccion(seccion),
+              onTap: () {
+                setState(() {
+                  _modoPreparacion = false;
+                  _seccionActiva = seccion;
+                  _abrirCategoriasSeccion(seccion);
+                });
+              },
+            );
+          },
+        ),
+        _botonSeccion(
+          texto: 'Pedidos',
+          icono:
+              Icons.restaurant_menu_rounded,
+          activo: _modoPreparacion,
+          colores: const [
+            Color(0xFFFFD166),
+            ColoresApp.principal,
+          ],
+          contador:
+              _pedidosPreparacion.length +
+                  _pedidosNoEnviados.length,
           onTap: () {
             setState(() {
               _modoPreparacion = true;
             });
+
             _cargarPreparacion();
           },
-          borderRadius: BorderRadius.circular(14),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 10,
-            ),
-            decoration: BoxDecoration(
-              gradient: _modoPreparacion
-                  ? const LinearGradient(
-                      colors: [
-                        Color(0xFFFFD166),
-                        ColoresApp.principal,
-                      ],
-                    )
-                  : null,
-              color: _modoPreparacion ? null : ColoresApp.fondoSecundario,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: _modoPreparacion
-                    ? Colors.transparent
-                    : Colors.white.withOpacity(0.08),
-              ),
-              boxShadow: _modoPreparacion
-                  ? [
-                      BoxShadow(
-                        color: ColoresApp.principal.withOpacity(0.28),
-                        blurRadius: 14,
-                        offset: const Offset(0, 6),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.restaurant_menu_rounded,
-                  size: 18,
-                  color: _modoPreparacion
-                      ? Colors.black
-                      : ColoresApp.textoPrincipal,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Preparación',
-                  style: TextStyle(
-                    color: _modoPreparacion
-                        ? Colors.black
-                        : ColoresApp.textoPrincipal,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                if (_pedidosPreparacion.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _modoPreparacion ? Colors.black : ColoresApp.principal,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${_pedidosPreparacion.length}',
-                      style: TextStyle(
-                        color: _modoPreparacion ? ColoresApp.principal : Colors.black,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
         ),
       ],
+    );
+  }
+
+  Widget _botonSeccion({
+    required String texto,
+    required IconData icono,
+    required bool activo,
+    required List<Color> colores,
+    required VoidCallback onTap,
+    int contador = 0,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius:
+          BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration:
+            const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          gradient: activo
+              ? LinearGradient(
+                  colors: colores,
+                )
+              : null,
+          color: activo
+              ? null
+              : ColoresApp.fondoSecundario,
+          borderRadius:
+              BorderRadius.circular(14),
+          border: Border.all(
+            color: activo
+                ? Colors.transparent
+                : Colors.white.withOpacity(0.08),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icono,
+              size: 18,
+              color: activo
+                  ? Colors.black
+                  : ColoresApp.textoPrincipal,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              texto,
+              style: TextStyle(
+                color: activo
+                    ? Colors.black
+                    : ColoresApp.textoPrincipal,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            if (contador > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: activo
+                      ? Colors.black
+                      : ColoresApp.principal,
+                  borderRadius:
+                      BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '$contador',
+                  style: TextStyle(
+                    color: activo
+                        ? ColoresApp.principal
+                        : Colors.black,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -807,22 +1186,26 @@ class _PaginaVentasState extends State<PaginaVentas> {
       height: 48,
       child: OutlinedButton.icon(
         onPressed: _cargarPreparacion,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: ColoresApp.textoPrincipal,
-          side: BorderSide(
-            color: Colors.white.withOpacity(0.14),
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
         icon: const Icon(
           Icons.refresh_rounded,
           color: ColoresApp.principal,
         ),
         label: const Text(
-          'Actualizar pedidos pendientes',
-          style: TextStyle(fontWeight: FontWeight.w800),
+          'Actualizar pedidos',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor:
+              ColoresApp.textoPrincipal,
+          side: BorderSide(
+            color: Colors.white.withOpacity(0.14),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(16),
+          ),
         ),
       ),
     );
@@ -830,331 +1213,872 @@ class _PaginaVentasState extends State<PaginaVentas> {
 
   Widget _campoBusqueda() {
     return TextField(
-      onChanged: (value) {
+      onChanged: (valor) {
         setState(() {
-          _busqueda = value;
+          _busqueda = valor;
+
+          if (valor.trim().isNotEmpty) {
+            _categoriasAbiertas.addAll(
+              _productosFiltrados.map(
+                (producto) => _normalizarCategoria(
+                  producto.categoria,
+                ),
+              ),
+            );
+          }
         });
       },
-      style: const TextStyle(color: ColoresApp.textoPrincipal),
+      style: const TextStyle(
+        color: ColoresApp.textoPrincipal,
+      ),
       decoration: InputDecoration(
-        hintText: 'Buscar en ${_nombreSeccion(_seccionActiva).toLowerCase()}...',
+        hintText:
+            'Buscar en ${_nombreSeccion(_seccionActiva).toLowerCase()}...',
         hintStyle: const TextStyle(
           color: ColoresApp.textoSecundario,
         ),
         prefixIcon: Icon(
           Icons.search_rounded,
-          color: _colorSuaveSeccion(_seccionActiva),
+          color:
+              _colorSuaveSeccion(_seccionActiva),
         ),
         filled: true,
-        fillColor: ColoresApp.fondoSecundario,
+        fillColor:
+            ColoresApp.fondoSecundario,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: _colorSuaveSeccion(_seccionActiva),
-            width: 1.3,
-          ),
+          borderRadius:
+              BorderRadius.circular(16),
         ),
       ),
     );
   }
 
-  Widget _listaProductos(List<ProductoVenta> productos, bool esCelular) {
-    if (_productos.isEmpty) {
-      return SizedBox(
-        height: esCelular ? 220 : null,
-        child: const Center(
-          child: CircularProgressIndicator(
-            color: ColoresApp.principal,
+  String _normalizarCategoria(String categoria) {
+    final valor = categoria.trim().toLowerCase();
+
+    return valor.isEmpty ? 'sin categoría' : valor;
+  }
+
+  String _nombreVisibleCategoria(
+    List<ProductoVenta> productos,
+  ) {
+    if (productos.isEmpty) {
+      return 'Sin categoría';
+    }
+
+    final categoria = productos.first.categoria.trim();
+
+    return categoria.isEmpty
+        ? 'Sin categoría'
+        : categoria;
+  }
+
+  Map<String, List<ProductoVenta>> _agruparProductos(
+    List<ProductoVenta> productos,
+  ) {
+    final grupos = <String, List<ProductoVenta>>{};
+
+    for (final producto in productos) {
+      final clave = _normalizarCategoria(
+        producto.categoria,
+      );
+
+      grupos.putIfAbsent(clave, () => []);
+      grupos[clave]!.add(producto);
+    }
+
+    for (final productosCategoria in grupos.values) {
+      productosCategoria.sort(
+        (a, b) => a.nombre.toLowerCase().compareTo(
+              b.nombre.toLowerCase(),
+            ),
+      );
+    }
+
+    final entradas = grupos.entries.toList()
+      ..sort((a, b) {
+        final nombreA = _nombreVisibleCategoria(
+          a.value,
+        ).toLowerCase();
+
+        final nombreB = _nombreVisibleCategoria(
+          b.value,
+        ).toLowerCase();
+
+        return nombreA.compareTo(nombreB);
+      });
+
+    return Map<String, List<ProductoVenta>>.fromEntries(
+      entradas,
+    );
+  }
+
+  void _abrirCategoriasSeccion(
+    SeccionVenta seccion,
+  ) {
+    _categoriasAbiertas.addAll(
+      _productos
+          .where(
+            (producto) => producto.seccion == seccion,
+          )
+          .map(
+            (producto) => _normalizarCategoria(
+              producto.categoria,
+            ),
           ),
+    );
+  }
+
+  void _abrirTodasCategorias(
+    List<ProductoVenta> productos,
+  ) {
+    setState(() {
+      _categoriasAbiertas.addAll(
+        productos.map(
+          (producto) => _normalizarCategoria(
+            producto.categoria,
+          ),
+        ),
+      );
+    });
+  }
+
+  void _cerrarTodasCategorias(
+    List<ProductoVenta> productos,
+  ) {
+    final categorias = productos
+        .map(
+          (producto) => _normalizarCategoria(
+            producto.categoria,
+          ),
+        )
+        .toSet();
+
+    setState(() {
+      _categoriasAbiertas.removeAll(categorias);
+    });
+  }
+
+  Widget _listaProductos(
+    List<ProductoVenta> productos,
+    bool esCelular,
+  ) {
+    if (_productos.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: ColoresApp.principal,
         ),
       );
     }
 
     if (productos.isEmpty) {
-      return SizedBox(
-        height: esCelular ? 180 : null,
-        child: Center(
-          child: Text(
-            'No hay productos en ${_nombreSeccion(_seccionActiva)}.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: ColoresApp.textoSecundario,
-              fontSize: 15,
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (esCelular) {
-      return ListView.separated(
-        itemCount: productos.length,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final producto = productos[index];
-
-          return SizedBox(
-            height: 230,
-            child: TarjetaProductoVenta(
-              producto: producto,
-              esDueno: _esDueno,
-              onAgregar: () => _agregarProducto(producto),
-              onEditar: () => _editarProducto(producto),
-              onEliminar: () => _eliminarProducto(producto),
-            ),
-          );
-        },
-      );
-    }
-
-    return GridView.builder(
-      itemCount: productos.length,
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 250,
-        mainAxisExtent: 235,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-      ),
-      itemBuilder: (context, index) {
-        final producto = productos[index];
-
-        return TarjetaProductoVenta(
-          producto: producto,
-          esDueno: _esDueno,
-          onAgregar: () => _agregarProducto(producto),
-          onEditar: () => _editarProducto(producto),
-          onEliminar: () => _eliminarProducto(producto),
-        );
-      },
-    );
-  }
-
-  Widget _listaPreparacion(bool esCelular) {
-    if (_cargandoPreparacion) {
-      return SizedBox(
-        height: esCelular ? 220 : null,
-        child: const Center(
-          child: CircularProgressIndicator(
-            color: ColoresApp.principal,
-          ),
-        ),
-      );
-    }
-
-    if (_pedidosPreparacion.isEmpty) {
-      return Container(
-        width: double.infinity,
-        height: esCelular ? 180 : null,
-        alignment: Alignment.center,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: ColoresApp.fondoSecundario,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Text(
-          'No hay pedidos pendientes de preparación.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
+      return Center(
+        child: Text(
+          'No hay productos en ${_nombreSeccion(_seccionActiva)}.',
+          style: const TextStyle(
             color: ColoresApp.textoSecundario,
-            fontSize: 15,
           ),
         ),
       );
     }
 
-    return ListView.separated(
-      itemCount: _pedidosPreparacion.length,
+    final grupos = _agruparProductos(productos);
+
+    return ListView(
       shrinkWrap: esCelular,
       physics: esCelular
           ? const NeverScrollableScrollPhysics()
           : const AlwaysScrollableScrollPhysics(),
-      separatorBuilder: (_, __) => const SizedBox(height: 14),
-      itemBuilder: (context, index) {
-        final pedido = _pedidosPreparacion[index];
-        return _tarjetaPreparacion(pedido, index);
-      },
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${grupos.length} ${grupos.length == 1 ? 'categoría' : 'categorías'}',
+                style: const TextStyle(
+                  color: ColoresApp.textoSecundario,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                _abrirTodasCategorias(productos);
+              },
+              icon: const Icon(
+                Icons.unfold_more_rounded,
+                size: 18,
+              ),
+              label: const Text('Abrir todas'),
+              style: TextButton.styleFrom(
+                foregroundColor: ColoresApp.principal,
+              ),
+            ),
+            const SizedBox(width: 4),
+            TextButton.icon(
+              onPressed: () {
+                _cerrarTodasCategorias(productos);
+              },
+              icon: const Icon(
+                Icons.unfold_less_rounded,
+                size: 18,
+              ),
+              label: const Text('Cerrar todas'),
+              style: TextButton.styleFrom(
+                foregroundColor:
+                    ColoresApp.textoSecundario,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...grupos.entries.map(
+          (entrada) => _bloqueCategoriaProductos(
+            claveCategoria: entrada.key,
+            productos: entrada.value,
+            esCelular: esCelular,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _tarjetaPreparacion(PedidoPreparacion pedido, int index) {
+  Widget _bloqueCategoriaProductos({
+    required String claveCategoria,
+    required List<ProductoVenta> productos,
+    required bool esCelular,
+  }) {
+    final abierta =
+        _categoriasAbiertas.contains(claveCategoria);
+
+    final nombreCategoria =
+        _nombreVisibleCategoria(productos);
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: ColoresApp.fondoSecundario,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: ColoresApp.principal.withOpacity(0.16),
+          color: abierta
+              ? ColoresApp.principal.withOpacity(0.24)
+              : Colors.white.withOpacity(0.06),
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() {
+                if (abierta) {
+                  _categoriasAbiertas.remove(
+                    claveCategoria,
+                  );
+                } else {
+                  _categoriasAbiertas.add(
+                    claveCategoria,
+                  );
+                }
+              });
+            },
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: ColoresApp.principal
+                          .withOpacity(0.14),
+                      borderRadius:
+                          BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.category_rounded,
+                      color: ColoresApp.principal,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      nombreCategoria,
+                      style: const TextStyle(
+                        color:
+                            ColoresApp.textoPrincipal,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: ColoresApp.principal
+                          .withOpacity(0.14),
+                      borderRadius:
+                          BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${productos.length}',
+                      style: const TextStyle(
+                        color: ColoresApp.principal,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  AnimatedRotation(
+                    turns: abierta ? 0.5 : 0,
+                    duration:
+                        const Duration(milliseconds: 180),
+                    child: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: ColoresApp.textoSecundario,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(
+              width: double.infinity,
+              height: 0,
+            ),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                14,
+                0,
+                14,
+                14,
+              ),
+              child: GridView.builder(
+                itemCount: productos.length,
+                shrinkWrap: true,
+                physics:
+                    const NeverScrollableScrollPhysics(),
+                gridDelegate: esCelular
+                    ? const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 1,
+                        mainAxisExtent: 230,
+                        mainAxisSpacing: 12,
+                      )
+                    : const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 250,
+                        mainAxisExtent: 235,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                      ),
+                itemBuilder: (context, index) {
+                  final producto = productos[index];
+
+                  return TarjetaProductoVenta(
+                    producto: producto,
+                    esDueno: _esDueno,
+                    onAgregar: () {
+                      _agregarProducto(producto);
+                    },
+                    onEditar: () {
+                      _editarProducto(producto);
+                    },
+                    onEliminar: () {
+                      _eliminarProducto(producto);
+                    },
+                  );
+                },
+              ),
+            ),
+            crossFadeState: abierta
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 180),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _listaGestionPedidos(
+    bool esCelular,
+  ) {
+    if (_cargandoPreparacion) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: ColoresApp.principal,
+        ),
+      );
+    }
+
+    if (_pedidosPreparacion.isEmpty &&
+        _pedidosNoEnviados.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: ColoresApp.fondoSecundario,
+          borderRadius:
+              BorderRadius.circular(18),
+        ),
+        child: const Text(
+          'No hay pedidos pendientes.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: ColoresApp.textoSecundario,
+          ),
+        ),
+      );
+    }
+
+    final contenido = <Widget>[];
+
+    if (_pedidosNoEnviados.isNotEmpty) {
+      contenido.add(
+        _tituloGrupo(
+          'Pendientes de enviar',
+          _pedidosNoEnviados.length,
+        ),
+      );
+
+      for (final pedido
+          in _pedidosNoEnviados) {
+        contenido.add(
+          const SizedBox(height: 12),
+        );
+
+        contenido.add(
+          _tarjetaPedidoGestion(
+            pedido,
+            enviado: false,
+          ),
+        );
+      }
+    }
+
+    if (_pedidosPreparacion.isNotEmpty) {
+      if (contenido.isNotEmpty) {
+        contenido.add(
+          const SizedBox(height: 22),
+        );
+      }
+
+      contenido.add(
+        _tituloGrupo(
+          'En preparación',
+          _pedidosPreparacion.length,
+        ),
+      );
+
+      for (final pedido
+          in _pedidosPreparacion) {
+        contenido.add(
+          const SizedBox(height: 12),
+        );
+
+        contenido.add(
+          _tarjetaPedidoGestion(
+            pedido,
+            enviado: true,
+          ),
+        );
+      }
+    }
+
+    return ListView(
+      shrinkWrap: esCelular,
+      physics: esCelular
+          ? const NeverScrollableScrollPhysics()
+          : const AlwaysScrollableScrollPhysics(),
+      children: contenido,
+    );
+  }
+
+  Widget _tituloGrupo(
+    String titulo,
+    int cantidad,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            titulo,
+            style: const TextStyle(
+              color: ColoresApp.textoPrincipal,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color:
+                ColoresApp.principal.withOpacity(0.15),
+            borderRadius:
+                BorderRadius.circular(20),
+          ),
+          child: Text(
+            '$cantidad',
+            style: const TextStyle(
+              color: ColoresApp.principal,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tarjetaPedidoGestion(
+    PedidoPreparacion pedido, {
+    required bool enviado,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: ColoresApp.fondoSecundario,
+        borderRadius:
+            BorderRadius.circular(20),
+        border: Border.all(
+          color:
+              ColoresApp.principal.withOpacity(0.16),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 54,
-                height: 54,
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      ColoresApp.principalClaro,
-                      ColoresApp.principal,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
+                  color: ColoresApp.principal
+                      .withOpacity(0.15),
+                  borderRadius:
+                      BorderRadius.circular(15),
                 ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 22,
-                    ),
+                child: Text(
+                  '#${pedido.id}',
+                  style: const TextStyle(
+                    color: ColoresApp.principal,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Pedido #${pedido.id}',
+                      pedido.nombrePedido,
                       style: const TextStyle(
-                        color: ColoresApp.textoPrincipal,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
+                        color:
+                            ColoresApp.textoPrincipal,
+                        fontSize: 19,
+                        fontWeight:
+                            FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
-                      'Entró ${_formatearHora(pedido.fecha)} • ${pedido.vendedorNombre}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      '${nombreTipoPedido(pedido.tipoPedido)} • ${_formatearHora(pedido.fecha)}',
                       style: const TextStyle(
-                        color: ColoresApp.textoSecundario,
+                        color:
+                            ColoresApp.textoSecundario,
                         fontSize: 13,
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0x22FFA726),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'PENDIENTE',
-                  style: TextStyle(
-                    color: Color(0xFFFFA726),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 11,
-                  ),
-                ),
+              _etiquetaEstadoCobro(
+                pedido.estadoCobro,
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          ...pedido.detalles.map((detalle) {
-            return Container(
+          if (pedido.barrio.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _datoPedido(
+              Icons.location_on_rounded,
+              'Barrio: ${pedido.barrio}',
+            ),
+          ],
+          if (pedido.responsableDinero
+              .isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _datoPedido(
+              Icons.delivery_dining_rounded,
+              'Dinero con: ${pedido.responsableDinero}',
+            ),
+          ],
+          const SizedBox(height: 14),
+          ...pedido.detalles.map(
+            (detalle) => Container(
               width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
+              margin:
+                  const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.black,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius:
+                    BorderRadius.circular(14),
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Text(
                     '${detalle.cantidad} x ${detalle.nombreProducto}',
                     style: const TextStyle(
-                      color: ColoresApp.textoPrincipal,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
+                      color:
+                          ColoresApp.textoPrincipal,
+                      fontWeight:
+                          FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    detalle.categoriaProducto,
-                    style: const TextStyle(
-                      color: ColoresApp.textoSecundario,
-                      fontSize: 12,
-                    ),
-                  ),
-                  if (detalle.sabores.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: List.generate(detalle.sabores.length, (i) {
-                        final sabor = detalle.sabores[i];
-
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ColoresApp.principal.withOpacity(0.14),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: ColoresApp.principal.withOpacity(0.25),
+                  if (detalle
+                      .descripcionesConfiguracion
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    ...detalle
+                        .descripcionesConfiguracion
+                        .map(
+                          (descripcion) => Padding(
+                            padding:
+                                const EdgeInsets.only(
+                              bottom: 3,
+                            ),
+                            child: Text(
+                              '• $descripcion',
+                              style: const TextStyle(
+                                color:
+                                    ColoresApp.principal,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                          child: Text(
-                            '${i + 1}. $sabor',
-                            style: const TextStyle(
-                              color: ColoresApp.principal,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
+                        ),
                   ],
                 ],
               ),
-            );
-          }),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () => _marcarPedidoListo(pedido),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00A896),
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              icon: const Icon(Icons.check_circle_rounded),
-              label: const Text(
-                'Marcar como listo',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
             ),
+          ),
+          const SizedBox(height: 8),
+          _filaResumenPedido(
+            'Consumo',
+            pedido.subtotal,
+          ),
+          if (pedido.totalRecargos > 0) ...[
+            const SizedBox(height: 6),
+            _filaResumenPedido(
+              'Recargos',
+              pedido.totalRecargos,
+            ),
+          ],
+          const SizedBox(height: 6),
+          _filaResumenPedido(
+            'Total',
+            pedido.total,
+            resaltar: true,
+          ),
+          const SizedBox(height: 15),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (pedido.pendienteDeCobro)
+                _botonAccionPedido(
+                  texto: 'Cobrar',
+                  icono: Icons.payments_rounded,
+                  onPressed: () {
+                    _cobrarPedidoPendiente(
+                      pedido,
+                    );
+                  },
+                ),
+              if (!enviado)
+                _botonAccionPedido(
+                  texto: 'Enviar a preparación',
+                  icono:
+                      Icons.restaurant_menu_rounded,
+                  onPressed: () {
+                    _enviarPedidoPreparacion(
+                      pedido,
+                    );
+                  },
+                ),
+              if (enviado)
+                _botonAccionPedido(
+                  texto: 'Marcar listo',
+                  icono:
+                      Icons.check_circle_rounded,
+                  onPressed: () {
+                    _marcarPedidoListo(
+                      pedido,
+                    );
+                  },
+                ),
+              if (pedido.dineroConRepartidor)
+                _botonAccionPedido(
+                  texto: 'Dinero entregado',
+                  icono:
+                      Icons.account_balance_wallet_rounded,
+                  onPressed: () {
+                    _marcarDineroEntregado(
+                      pedido,
+                    );
+                  },
+                ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _datoPedido(
+    IconData icono,
+    String texto,
+  ) {
+    return Row(
+      children: [
+        Icon(
+          icono,
+          size: 18,
+          color: ColoresApp.principal,
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            texto,
+            style: const TextStyle(
+              color: ColoresApp.textoSecundario,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _etiquetaEstadoCobro(
+    EstadoCobroVenta estado,
+  ) {
+    final Color color;
+
+    switch (estado) {
+      case EstadoCobroVenta.pagado:
+      case EstadoCobroVenta.entregado:
+        color = ColoresApp.exito;
+        break;
+
+      case EstadoCobroVenta.pendientePago:
+        color = const Color(0xFFFFA726);
+        break;
+
+      case EstadoCobroVenta.cobradoRepartidor:
+        color = ColoresApp.principal;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius:
+            BorderRadius.circular(12),
+      ),
+      child: Text(
+        nombreEstadoCobro(estado),
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _botonAccionPedido({
+    required String texto,
+    required IconData icono,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(
+        icono,
+        size: 18,
+      ),
+      label: Text(
+        texto,
+        style: const TextStyle(
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: ColoresApp.principal,
+        foregroundColor: Colors.black,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(13),
+        ),
+      ),
+    );
+  }
+
+  Widget _filaResumenPedido(
+    String titulo,
+    double valor, {
+    bool resaltar = false,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            titulo,
+            style: TextStyle(
+              color: resaltar
+                  ? ColoresApp.textoPrincipal
+                  : ColoresApp.textoSecundario,
+              fontWeight: resaltar
+                  ? FontWeight.w900
+                  : FontWeight.w600,
+            ),
+          ),
+        ),
+        Text(
+          '\$${valor.toStringAsFixed(2)}',
+          style: TextStyle(
+            color: resaltar
+                ? ColoresApp.principal
+                : ColoresApp.textoPrincipal,
+            fontSize: resaltar ? 18 : 14,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1164,17 +2088,23 @@ class _PaginaVentasState extends State<PaginaVentas> {
   }) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(esCelular ? 16 : 18),
+      padding: EdgeInsets.all(
+        esCelular ? 16 : 18,
+      ),
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius:
+            BorderRadius.circular(24),
         border: Border.all(
           color: Colors.white.withOpacity(0.06),
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: alturaFija ? MainAxisSize.max : MainAxisSize.min,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        mainAxisSize: alturaFija
+            ? MainAxisSize.max
+            : MainAxisSize.min,
         children: [
           Text(
             'Pedido actual',
@@ -1187,30 +2117,35 @@ class _PaginaVentasState extends State<PaginaVentas> {
           const SizedBox(height: 8),
           Text(
             'Atendido por: ${widget.usuario.nombre}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: ColoresApp.textoSecundario,
-              fontSize: 14,
             ),
           ),
           const SizedBox(height: 18),
           if (alturaFija)
             Expanded(
-              child: _listaPedido(esCelular),
+              child: _listaPedido(
+                esCelular,
+              ),
             )
           else
-            _listaPedido(esCelular),
+            _listaPedido(
+              esCelular,
+            ),
           const SizedBox(height: 16),
           _totalesPedido(),
           const SizedBox(height: 16),
-          _botonesPedido(esCelular),
+          _botonesPedido(
+            esCelular,
+          ),
         ],
       ),
     );
   }
 
-  Widget _listaPedido(bool esCelular) {
+  Widget _listaPedido(
+    bool esCelular,
+  ) {
     if (_pedido.isEmpty) {
       return Container(
         width: double.infinity,
@@ -1219,53 +2154,49 @@ class _PaginaVentasState extends State<PaginaVentas> {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: ColoresApp.fondoSecundario,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius:
+              BorderRadius.circular(18),
         ),
         child: const Text(
           'No hay productos agregados.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: ColoresApp.textoSecundario,
-            fontSize: 15,
           ),
         ),
       );
     }
 
-    if (esCelular) {
-      return ListView.separated(
-        itemCount: _pedido.length,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final item = _pedido[index];
-
-          return TarjetaItemPedido(
-            item: item,
-            onSumar: () => _sumarCantidad(item),
-            onRestar: () => _restarCantidad(item),
-            onEliminar: () => _eliminarItem(item),
-            onEditarSabores:
-                item.sabores.isNotEmpty ? () => _editarSaboresItem(item) : null,
-          );
-        },
-      );
-    }
-
     return ListView.separated(
       itemCount: _pedido.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      shrinkWrap: esCelular,
+      physics: esCelular
+          ? const NeverScrollableScrollPhysics()
+          : const AlwaysScrollableScrollPhysics(),
+      separatorBuilder: (_, __) {
+        return const SizedBox(height: 12);
+      },
       itemBuilder: (context, index) {
         final item = _pedido[index];
 
         return TarjetaItemPedido(
           item: item,
-          onSumar: () => _sumarCantidad(item),
-          onRestar: () => _restarCantidad(item),
-          onEliminar: () => _eliminarItem(item),
+          onSumar: () {
+            _sumarCantidad(item);
+          },
+          onRestar: () {
+            _restarCantidad(item);
+          },
+          onEliminar: () {
+            _eliminarItem(item);
+          },
           onEditarSabores:
-              item.sabores.isNotEmpty ? () => _editarSaboresItem(item) : null,
+              item.producto.esCombo &&
+                      item.eleccionesCombo.isNotEmpty
+                  ? () {
+                      _editarConfiguracionItem(item);
+                    }
+                  : null,
         );
       },
     );
@@ -1276,32 +2207,119 @@ class _PaginaVentasState extends State<PaginaVentas> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: ColoresApp.fondoSecundario,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(18),
       ),
       child: Column(
         children: [
-          _filaTotal('Subtotal', _subtotal),
+          _filaTotal(
+            'Subtotal',
+            _subtotal,
+          ),
           const SizedBox(height: 10),
-          _filaTotal('Total', _subtotal, resaltar: true),
+          _filaTotal(
+            'Total inicial',
+            _subtotal,
+            resaltar: true,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Los recargos se aplican al finalizar el pedido.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: ColoresApp.textoSecundario,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _botonesPedido(bool esCelular) {
+  Widget _botonesPedido(
+    bool esCelular,
+  ) {
+    final limpiar = OutlinedButton(
+      onPressed:
+          _guardandoVenta ? null : _limpiarPedido,
+      style: OutlinedButton.styleFrom(
+        foregroundColor:
+            ColoresApp.textoPrincipal,
+        side: BorderSide(
+          color: Colors.white.withOpacity(0.12),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(16),
+        ),
+      ),
+      child: const Text(
+        'Limpiar',
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+
+    final finalizar = Container(
+      decoration: BoxDecoration(
+        borderRadius:
+            BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors:
+              _coloresSeccion(_seccionActiva),
+        ),
+      ),
+      child: ElevatedButton(
+        onPressed: _guardandoVenta
+            ? null
+            : _finalizarPedido,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          foregroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(16),
+          ),
+        ),
+        child: _guardandoVenta
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child:
+                    CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor:
+                      AlwaysStoppedAnimation<
+                          Color>(
+                    Colors.black,
+                  ),
+                ),
+              )
+            : const Text(
+                'Finalizar pedido',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
+              ),
+      ),
+    );
+
     if (esCelular) {
       return Column(
         children: [
           SizedBox(
             width: double.infinity,
             height: 52,
-            child: _botonCobrar(),
+            child: finalizar,
           ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 48,
-            child: _botonLimpiar(),
+            child: limpiar,
           ),
         ],
       );
@@ -1312,78 +2330,25 @@ class _PaginaVentasState extends State<PaginaVentas> {
         Expanded(
           child: SizedBox(
             height: 52,
-            child: _botonLimpiar(),
+            child: limpiar,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: SizedBox(
             height: 52,
-            child: _botonCobrar(),
+            child: finalizar,
           ),
         ),
       ],
     );
   }
 
-  Widget _botonLimpiar() {
-    return OutlinedButton(
-      onPressed: _limpiarPedido,
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(
-          color: Colors.white.withOpacity(0.12),
-        ),
-        foregroundColor: ColoresApp.textoPrincipal,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-      child: const Text(
-        'Limpiar',
-        style: TextStyle(fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-
-  Widget _botonCobrar() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(colors: _coloresSeccion(_seccionActiva)),
-      ),
-      child: ElevatedButton(
-        onPressed: _guardandoVenta ? null : _cobrarPedido,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          foregroundColor: Colors.black,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        child: _guardandoVenta
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.black,
-                  ),
-                ),
-              )
-            : const Text(
-                'Cobrar',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                ),
-              ),
-      ),
-    );
-  }
-
-  Widget _filaTotal(String titulo, double valor, {bool resaltar = false}) {
+  Widget _filaTotal(
+    String titulo,
+    double valor, {
+    bool resaltar = false,
+  }) {
     return Row(
       children: [
         Expanded(
@@ -1394,21 +2359,22 @@ class _PaginaVentasState extends State<PaginaVentas> {
                   ? ColoresApp.textoPrincipal
                   : ColoresApp.textoSecundario,
               fontSize: resaltar ? 18 : 15,
-              fontWeight: resaltar ? FontWeight.w800 : FontWeight.w600,
+              fontWeight: resaltar
+                  ? FontWeight.w800
+                  : FontWeight.w600,
             ),
           ),
         ),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            '\$${valor.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: resaltar
-                  ? _colorSuaveSeccion(_seccionActiva)
-                  : ColoresApp.textoPrincipal,
-              fontSize: resaltar ? 22 : 16,
-              fontWeight: FontWeight.w900,
-            ),
+        Text(
+          '\$${valor.toStringAsFixed(2)}',
+          style: TextStyle(
+            color: resaltar
+                ? _colorSuaveSeccion(
+                    _seccionActiva,
+                  )
+                : ColoresApp.textoPrincipal,
+            fontSize: resaltar ? 22 : 16,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ],
