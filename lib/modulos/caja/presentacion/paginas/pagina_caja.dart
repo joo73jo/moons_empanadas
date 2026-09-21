@@ -6,10 +6,7 @@ import '../widgets/caja_supabase.dart';
 class PaginaCaja extends StatefulWidget {
   final Usuario usuario;
 
-  const PaginaCaja({
-    super.key,
-    required this.usuario,
-  });
+  const PaginaCaja({super.key, required this.usuario});
 
   @override
   State<PaginaCaja> createState() => _PaginaCajaState();
@@ -83,9 +80,7 @@ class _PaginaCajaState extends State<PaginaCaja> {
             labelStyle: const TextStyle(color: ColoresApp.textoSecundario),
             filled: true,
             fillColor: ColoresApp.fondoSecundario,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           ),
         ),
         actions: [
@@ -164,9 +159,7 @@ class _PaginaCajaState extends State<PaginaCaja> {
             labelStyle: const TextStyle(color: ColoresApp.textoSecundario),
             filled: true,
             fillColor: ColoresApp.fondoSecundario,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           ),
         ),
         actions: [
@@ -254,13 +247,15 @@ class _PaginaCajaState extends State<PaginaCaja> {
                   children: [
                     TextField(
                       controller: montoInicialController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       style: const TextStyle(color: ColoresApp.textoPrincipal),
                       decoration: InputDecoration(
                         labelText: 'Monto inicial manual',
-                        labelStyle:
-                            const TextStyle(color: ColoresApp.textoSecundario),
+                        labelStyle: const TextStyle(
+                          color: ColoresApp.textoSecundario,
+                        ),
                         filled: true,
                         fillColor: ColoresApp.fondoSecundario,
                         border: OutlineInputBorder(
@@ -282,13 +277,15 @@ class _PaginaCajaState extends State<PaginaCaja> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: montoFinalController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       style: const TextStyle(color: ColoresApp.textoPrincipal),
                       decoration: InputDecoration(
                         labelText: 'Monto final contado',
-                        labelStyle:
-                            const TextStyle(color: ColoresApp.textoSecundario),
+                        labelStyle: const TextStyle(
+                          color: ColoresApp.textoSecundario,
+                        ),
                         filled: true,
                         fillColor: ColoresApp.fondoSecundario,
                         border: OutlineInputBorder(
@@ -318,10 +315,12 @@ class _PaginaCajaState extends State<PaginaCaja> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    final montoInicial =
-                        double.tryParse(montoInicialController.text.trim());
-                    final montoFinal =
-                        double.tryParse(montoFinalController.text.trim());
+                    final montoInicial = double.tryParse(
+                      montoInicialController.text.trim(),
+                    );
+                    final montoFinal = double.tryParse(
+                      montoFinalController.text.trim(),
+                    );
 
                     if (montoInicial == null ||
                         montoFinal == null ||
@@ -434,9 +433,7 @@ class _PaginaCajaState extends State<PaginaCaja> {
         color: ColoresApp.fondoPrincipal,
         child: _cargando
             ? const Center(
-                child: CircularProgressIndicator(
-                  color: ColoresApp.principal,
-                ),
+                child: CircularProgressIndicator(color: ColoresApp.principal),
               )
             : RefreshIndicator(
                 color: ColoresApp.principal,
@@ -481,19 +478,14 @@ class _PaginaCajaState extends State<PaginaCaja> {
     );
   }
 
-  Widget _panelCajaActual(
-    CajaResumen? caja, {
-    required bool esCelular,
-  }) {
+  Widget _panelCajaActual(CajaResumen? caja, {required bool esCelular}) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(esCelular ? 18 : 20),
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -588,16 +580,12 @@ class _PaginaCajaState extends State<PaginaCaja> {
                       height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.4,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.black,
-                        ),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                       ),
                     )
                   : Text(
                       _esDueno ? 'Abrir caja' : 'Acceso restringido',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
             ),
           ),
@@ -627,22 +615,13 @@ class _PaginaCajaState extends State<PaginaCaja> {
                   titulo: 'Monto inicial',
                   valor: caja.montoInicial,
                 ),
-                _tarjetaMonto(
-                  titulo: 'Total ventas',
-                  valor: caja.totalVentas,
-                ),
-                _tarjetaMonto(
-                  titulo: 'Efectivo',
-                  valor: caja.totalEfectivo,
-                ),
+                _tarjetaMonto(titulo: 'Total ventas', valor: caja.totalVentas),
+                _tarjetaMonto(titulo: 'Efectivo', valor: caja.totalEfectivo),
                 _tarjetaMonto(
                   titulo: 'Transferencia',
                   valor: caja.totalTransferencia,
                 ),
-                _tarjetaMonto(
-                  titulo: 'Tarjeta',
-                  valor: caja.totalTarjeta,
-                ),
+                _tarjetaMonto(titulo: 'Tarjeta', valor: caja.totalTarjeta),
                 _tarjetaMonto(
                   titulo: 'Esperado en caja',
                   valor: caja.esperadoEnCaja,
@@ -661,22 +640,15 @@ class _PaginaCajaState extends State<PaginaCaja> {
               onPressed: _procesando ? null : _editarMontoInicial,
               style: OutlinedButton.styleFrom(
                 foregroundColor: ColoresApp.textoPrincipal,
-                side: BorderSide(
-                  color: Colors.white.withOpacity(0.12),
-                ),
+                side: BorderSide(color: Colors.white.withOpacity(0.12)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              icon: const Icon(
-                Icons.edit_rounded,
-                color: ColoresApp.principal,
-              ),
+              icon: const Icon(Icons.edit_rounded, color: ColoresApp.principal),
               label: const Text(
                 'Editar monto inicial',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -699,16 +671,14 @@ class _PaginaCajaState extends State<PaginaCaja> {
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.4,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.black,
-                      ),
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                     ),
                   )
                 : Text(
-                    _esDueno ? 'Cerrar caja' : 'Solo el dueño puede cerrar caja',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                    ),
+                    _esDueno
+                        ? 'Cerrar caja'
+                        : 'Solo el dueño puede cerrar caja',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
                     textAlign: TextAlign.center,
                   ),
           ),
@@ -724,9 +694,7 @@ class _PaginaCajaState extends State<PaginaCaja> {
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -751,9 +719,7 @@ class _PaginaCajaState extends State<PaginaCaja> {
               child: const Text(
                 'No hay cajas registradas.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: ColoresApp.textoSecundario,
-                ),
+                style: TextStyle(color: ColoresApp.textoSecundario),
               ),
             )
           else
@@ -893,8 +859,9 @@ class _PaginaCajaState extends State<PaginaCaja> {
               '\$${valor.toStringAsFixed(2)}',
               maxLines: 1,
               style: TextStyle(
-                color:
-                    resaltar ? ColoresApp.principal : ColoresApp.textoPrincipal,
+                color: resaltar
+                    ? ColoresApp.principal
+                    : ColoresApp.textoPrincipal,
                 fontSize: resaltar ? 24 : 21,
                 fontWeight: FontWeight.w900,
               ),
@@ -924,8 +891,9 @@ class _PaginaCajaState extends State<PaginaCaja> {
             child: Text(
               '\$${valor.toStringAsFixed(2)}',
               style: TextStyle(
-                color:
-                    resaltar ? ColoresApp.principal : ColoresApp.textoPrincipal,
+                color: resaltar
+                    ? ColoresApp.principal
+                    : ColoresApp.textoPrincipal,
                 fontWeight: FontWeight.w900,
               ),
             ),

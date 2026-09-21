@@ -24,8 +24,7 @@ class TarjetaItemPedido extends StatelessWidget {
   }
 
   bool get _tieneConfiguracion {
-    return _tieneConfiguracionCombo ||
-        item.sabores.isNotEmpty;
+    return _tieneConfiguracionCombo || item.sabores.isNotEmpty;
   }
 
   @override
@@ -36,8 +35,7 @@ class TarjetaItemPedido extends StatelessWidget {
         color: ColoresApp.fondoSecundario,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _tieneConfiguracionCombo &&
-                  item.totalRecargoCombo > 0
+          color: _tieneConfiguracionCombo && item.totalRecargoCombo > 0
               ? const Color(0xFFFFA726).withOpacity(0.28)
               : Colors.white.withOpacity(0.05),
         ),
@@ -57,8 +55,7 @@ class TarjetaItemPedido extends StatelessWidget {
                   ),
                 ),
               ),
-              if (_tieneConfiguracion &&
-                  onEditarSabores != null)
+              if (_tieneConfiguracion && onEditarSabores != null)
                 IconButton(
                   onPressed: onEditarSabores,
                   tooltip: _tieneConfiguracionCombo
@@ -91,14 +88,9 @@ class TarjetaItemPedido extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _BotonCantidad(
-                icono: Icons.remove_rounded,
-                onTap: onRestar,
-              ),
+              _BotonCantidad(icono: Icons.remove_rounded, onTap: onRestar),
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Text(
                   '${item.cantidad}',
                   style: const TextStyle(
@@ -108,10 +100,7 @@ class TarjetaItemPedido extends StatelessWidget {
                   ),
                 ),
               ),
-              _BotonCantidad(
-                icono: Icons.add_rounded,
-                onTap: onSumar,
-              ),
+              _BotonCantidad(icono: Icons.add_rounded, onTap: onSumar),
               const Spacer(),
               Text(
                 '\$${item.subtotal.toStringAsFixed(2)}',
@@ -129,14 +118,10 @@ class TarjetaItemPedido extends StatelessWidget {
   }
 
   Widget _informacionPrecio() {
-    if (!_tieneConfiguracionCombo ||
-        item.recargoComboUnitario <= 0) {
+    if (!_tieneConfiguracionCombo || item.recargoComboUnitario <= 0) {
       return Text(
         '\$${item.precioUnitarioFinal.toStringAsFixed(2)} c/u',
-        style: const TextStyle(
-          color: ColoresApp.textoSecundario,
-          fontSize: 13,
-        ),
+        style: const TextStyle(color: ColoresApp.textoSecundario, fontSize: 13),
       );
     }
 
@@ -149,10 +134,7 @@ class TarjetaItemPedido extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _filaPrecio(
-            titulo: 'Precio base',
-            valor: item.producto.precio,
-          ),
+          _filaPrecio(titulo: 'Precio base', valor: item.producto.precio),
           const SizedBox(height: 5),
           _filaPrecio(
             titulo: 'Sustituciones',
@@ -160,13 +142,8 @@ class TarjetaItemPedido extends StatelessWidget {
             resaltarRecargo: true,
           ),
           const Padding(
-            padding: EdgeInsets.symmetric(
-              vertical: 7,
-            ),
-            child: Divider(
-              height: 1,
-              color: Color(0x22FFFFFF),
-            ),
+            padding: EdgeInsets.symmetric(vertical: 7),
+            child: Divider(height: 1, color: Color(0x22FFFFFF)),
           ),
           _filaPrecio(
             titulo: 'Precio por combo',
@@ -187,8 +164,8 @@ class TarjetaItemPedido extends StatelessWidget {
     final color = resaltarRecargo
         ? const Color(0xFFFFA726)
         : resaltarTotal
-            ? ColoresApp.principal
-            : ColoresApp.textoSecundario;
+        ? ColoresApp.principal
+        : ColoresApp.textoSecundario;
 
     return Row(
       children: [
@@ -200,9 +177,7 @@ class TarjetaItemPedido extends StatelessWidget {
                   ? ColoresApp.textoPrincipal
                   : ColoresApp.textoSecundario,
               fontSize: 12,
-              fontWeight: resaltarTotal
-                  ? FontWeight.w800
-                  : FontWeight.w600,
+              fontWeight: resaltarTotal ? FontWeight.w800 : FontWeight.w600,
             ),
           ),
         ),
@@ -231,99 +206,84 @@ class TarjetaItemPedido extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        ...item.eleccionesCombo.map(
-          (eleccion) {
-            return Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(
-                bottom: 7,
+        ...item.eleccionesCombo.map((eleccion) {
+          return Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: eleccion.fueSustituido
+                    ? const Color(0xFFFFA726).withOpacity(0.35)
+                    : ColoresApp.principal.withOpacity(0.16),
               ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 11,
-                vertical: 9,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  eleccion.fueSustituido
+                      ? Icons.swap_horiz_rounded
+                      : Icons.check_circle_outline_rounded,
+                  size: 18,
                   color: eleccion.fueSustituido
                       ? const Color(0xFFFFA726)
-                          .withOpacity(0.35)
-                      : ColoresApp.principal
-                          .withOpacity(0.16),
+                      : ColoresApp.principal,
                 ),
-              ),
-              child: Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    eleccion.fueSustituido
-                        ? Icons.swap_horiz_rounded
-                        : Icons.check_circle_outline_rounded,
-                    size: 18,
-                    color: eleccion.fueSustituido
-                        ? const Color(0xFFFFA726)
-                        : ColoresApp.principal,
-                  ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          eleccion.nombreComponente,
-                          style: const TextStyle(
-                            color:
-                                ColoresApp.textoSecundario,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          eleccion.descripcion,
-                          style: const TextStyle(
-                            color:
-                                ColoresApp.textoPrincipal,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (eleccion.fueSustituido) ...[
-                          const SizedBox(height: 3),
-                          const Text(
-                            'Sustitución',
-                            style: TextStyle(
-                              color: Color(0xFFFFA726),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (eleccion.recargoTotal > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 8,
-                      ),
-                      child: Text(
-                        '+\$${eleccion.recargoTotal.toStringAsFixed(2)}',
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        eleccion.nombreComponente,
                         style: const TextStyle(
-                          color: Color(0xFFFFA726),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
+                          color: ColoresApp.textoSecundario,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        eleccion.descripcion,
+                        style: const TextStyle(
+                          color: ColoresApp.textoPrincipal,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (eleccion.fueSustituido) ...[
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Sustitución',
+                          style: TextStyle(
+                            color: Color(0xFFFFA726),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (eleccion.recargoTotal > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(
+                      '+\$${eleccion.recargoTotal.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        color: Color(0xFFFFA726),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                ],
-              ),
-            );
-          },
-        ),
+                  ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
@@ -344,35 +304,28 @@ class TarjetaItemPedido extends StatelessWidget {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: List.generate(
-            item.sabores.length,
-            (index) {
-              final sabor = item.sabores[index];
+          children: List.generate(item.sabores.length, (index) {
+            final sabor = item.sabores[index];
 
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: ColoresApp.principal.withOpacity(0.16),
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: ColoresApp.principal
-                        .withOpacity(0.16),
-                  ),
+              ),
+              child: Text(
+                '${index + 1}. $sabor',
+                style: const TextStyle(
+                  color: ColoresApp.textoPrincipal,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-                child: Text(
-                  '${index + 1}. $sabor',
-                  style: const TextStyle(
-                    color: ColoresApp.textoPrincipal,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              );
-            },
-          ),
+              ),
+            );
+          }),
         ),
       ],
     );
@@ -383,10 +336,7 @@ class _BotonCantidad extends StatelessWidget {
   final IconData icono;
   final VoidCallback onTap;
 
-  const _BotonCantidad({
-    required this.icono,
-    required this.onTap,
-  });
+  const _BotonCantidad({required this.icono, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -400,11 +350,7 @@ class _BotonCantidad extends StatelessWidget {
           color: Colors.black,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(
-          icono,
-          color: ColoresApp.principal,
-          size: 18,
-        ),
+        child: Icon(icono, color: ColoresApp.principal, size: 18),
       ),
     );
   }

@@ -1,21 +1,8 @@
-enum SeccionVenta {
-  individuales,
-  combos,
-  uber,
-}
+enum SeccionVenta { individuales, combos, uber }
 
-enum TipoPedido {
-  local,
-  paraLlevar,
-  domicilio,
-}
+enum TipoPedido { local, paraLlevar, domicilio }
 
-enum EstadoCobroVenta {
-  pagado,
-  pendientePago,
-  cobradoRepartidor,
-  entregado,
-}
+enum EstadoCobroVenta { pagado, pendientePago, cobradoRepartidor, entregado }
 
 class ProductoVenta {
   final int id;
@@ -68,17 +55,13 @@ class ProductoVenta {
       categoria: categoria ?? this.categoria,
       precio: precio ?? this.precio,
       seccion: seccion ?? this.seccion,
-      requiereSabores:
-          requiereSabores ?? this.requiereSabores,
-      cantidadSabores:
-          cantidadSabores ?? this.cantidadSabores,
-      controlaStock:
-          controlaStock ?? this.controlaStock,
+      requiereSabores: requiereSabores ?? this.requiereSabores,
+      cantidadSabores: cantidadSabores ?? this.cantidadSabores,
+      controlaStock: controlaStock ?? this.controlaStock,
       stockActual: stockActual ?? this.stockActual,
       stockMinimo: stockMinimo ?? this.stockMinimo,
       stockCritico: stockCritico ?? this.stockCritico,
-      componentesCombo:
-          componentesCombo ?? this.componentesCombo,
+      componentesCombo: componentesCombo ?? this.componentesCombo,
     );
   }
 
@@ -138,15 +121,11 @@ class ComponenteCombo {
     return ComponenteCombo(
       id: id ?? this.id,
       comboId: comboId ?? this.comboId,
-      nombreComponente:
-          nombreComponente ?? this.nombreComponente,
+      nombreComponente: nombreComponente ?? this.nombreComponente,
       productoPredeterminado:
-          productoPredeterminado ??
-              this.productoPredeterminado,
+          productoPredeterminado ?? this.productoPredeterminado,
       cantidad: cantidad ?? this.cantidad,
-      permiteSustitucion:
-          permiteSustitucion ??
-              this.permiteSustitucion,
+      permiteSustitucion: permiteSustitucion ?? this.permiteSustitucion,
       obligatorio: obligatorio ?? this.obligatorio,
       orden: orden ?? this.orden,
       activo: activo ?? this.activo,
@@ -154,34 +133,25 @@ class ComponenteCombo {
     );
   }
 
-  List<OpcionComponenteCombo>
-      get opcionesActivasOrdenadas {
-    final lista = opciones
-        .where((opcion) => opcion.activo)
-        .toList();
+  List<OpcionComponenteCombo> get opcionesActivasOrdenadas {
+    final lista = opciones.where((opcion) => opcion.activo).toList();
 
-    lista.sort(
-      (a, b) {
-        final comparacionOrden =
-            a.orden.compareTo(b.orden);
+    lista.sort((a, b) {
+      final comparacionOrden = a.orden.compareTo(b.orden);
 
-        if (comparacionOrden != 0) {
-          return comparacionOrden;
-        }
+      if (comparacionOrden != 0) {
+        return comparacionOrden;
+      }
 
-        return a.producto.nombre
-            .toLowerCase()
-            .compareTo(
-              b.producto.nombre.toLowerCase(),
-            );
-      },
-    );
+      return a.producto.nombre.toLowerCase().compareTo(
+        b.producto.nombre.toLowerCase(),
+      );
+    });
 
     return lista;
   }
 
-  OpcionComponenteCombo
-      get opcionPredeterminada {
+  OpcionComponenteCombo get opcionPredeterminada {
     return OpcionComponenteCombo(
       id: 0,
       componenteId: id,
@@ -193,19 +163,13 @@ class ComponenteCombo {
     );
   }
 
-  List<OpcionComponenteCombo>
-      get todasLasOpciones {
-    final resultado = <OpcionComponenteCombo>[
-      opcionPredeterminada,
-    ];
+  List<OpcionComponenteCombo> get todasLasOpciones {
+    final resultado = <OpcionComponenteCombo>[opcionPredeterminada];
 
     if (permiteSustitucion) {
-      for (final opcion
-          in opcionesActivasOrdenadas) {
+      for (final opcion in opcionesActivasOrdenadas) {
         final yaExiste = resultado.any(
-          (item) =>
-              item.producto.id ==
-              opcion.producto.id,
+          (item) => item.producto.id == opcion.producto.id,
         );
 
         if (!yaExiste) {
@@ -248,15 +212,12 @@ class OpcionComponenteCombo {
   }) {
     return OpcionComponenteCombo(
       id: id ?? this.id,
-      componenteId:
-          componenteId ?? this.componenteId,
+      componenteId: componenteId ?? this.componenteId,
       producto: producto ?? this.producto,
       recargo: recargo ?? this.recargo,
       activo: activo ?? this.activo,
       orden: orden ?? this.orden,
-      esPredeterminada:
-          esPredeterminada ??
-              this.esPredeterminada,
+      esPredeterminada: esPredeterminada ?? this.esPredeterminada,
     );
   }
 }
@@ -299,20 +260,14 @@ class EleccionComponenteCombo {
       componenteId: limpiarComponenteId
           ? null
           : componenteId ?? this.componenteId,
-      nombreComponente:
-          nombreComponente ?? this.nombreComponente,
-      productoPredeterminadoId:
-          limpiarProductoPredeterminadoId
-              ? null
-              : productoPredeterminadoId ??
-                  this.productoPredeterminadoId,
-      productoElegido:
-          productoElegido ?? this.productoElegido,
+      nombreComponente: nombreComponente ?? this.nombreComponente,
+      productoPredeterminadoId: limpiarProductoPredeterminadoId
+          ? null
+          : productoPredeterminadoId ?? this.productoPredeterminadoId,
+      productoElegido: productoElegido ?? this.productoElegido,
       cantidad: cantidad ?? this.cantidad,
-      recargoUnitario:
-          recargoUnitario ?? this.recargoUnitario,
-      fueSustituido:
-          fueSustituido ?? this.fueSustituido,
+      recargoUnitario: recargoUnitario ?? this.recargoUnitario,
+      fueSustituido: fueSustituido ?? this.fueSustituido,
     );
   }
 
@@ -328,28 +283,21 @@ class EleccionComponenteCombo {
 class ResultadoSeleccionCombo {
   final List<EleccionComponenteCombo> elecciones;
 
-  const ResultadoSeleccionCombo({
-    required this.elecciones,
-  });
+  const ResultadoSeleccionCombo({required this.elecciones});
 
   double get recargoUnitarioTotal {
     return elecciones.fold(
       0,
-      (total, eleccion) =>
-          total + eleccion.recargoTotal,
+      (total, eleccion) => total + eleccion.recargoTotal,
     );
   }
 
   List<String> get descripciones {
-    return elecciones
-        .map((eleccion) => eleccion.descripcion)
-        .toList();
+    return elecciones.map((eleccion) => eleccion.descripcion).toList();
   }
 
   bool get tieneSustituciones {
-    return elecciones.any(
-      (eleccion) => eleccion.fueSustituido,
-    );
+    return elecciones.any((eleccion) => eleccion.fueSustituido);
   }
 }
 
@@ -368,14 +316,13 @@ class ItemPedido {
     required this.cantidad,
     List<String>? sabores,
     List<EleccionComponenteCombo>? eleccionesCombo,
-  })  : sabores = sabores ?? [],
-        eleccionesCombo = eleccionesCombo ?? [];
+  }) : sabores = sabores ?? [],
+       eleccionesCombo = eleccionesCombo ?? [];
 
   double get recargoComboUnitario {
     return eleccionesCombo.fold(
       0,
-      (total, eleccion) =>
-          total + eleccion.recargoTotal,
+      (total, eleccion) => total + eleccion.recargoTotal,
     );
   }
 
@@ -396,15 +343,12 @@ class ItemPedido {
   }
 
   bool get esComboConfigurado {
-    return producto.esCombo &&
-        eleccionesCombo.isNotEmpty;
+    return producto.esCombo && eleccionesCombo.isNotEmpty;
   }
 
   List<String> get descripcionesCombo {
     if (eleccionesCombo.isNotEmpty) {
-      return eleccionesCombo
-          .map((eleccion) => eleccion.descripcion)
-          .toList();
+      return eleccionesCombo.map((eleccion) => eleccion.descripcion).toList();
     }
 
     return sabores;
@@ -413,19 +357,14 @@ class ItemPedido {
   bool mismaConfiguracion(
     ProductoVenta otroProducto,
     List<String> otrosSabores, {
-    List<EleccionComponenteCombo>
-        otrasEleccionesCombo = const [],
+    List<EleccionComponenteCombo> otrasEleccionesCombo = const [],
   }) {
     if (producto.id != otroProducto.id) {
       return false;
     }
 
-    if (eleccionesCombo.isNotEmpty ||
-        otrasEleccionesCombo.isNotEmpty) {
-      return _mismasEleccionesCombo(
-        eleccionesCombo,
-        otrasEleccionesCombo,
-      );
+    if (eleccionesCombo.isNotEmpty || otrasEleccionesCombo.isNotEmpty) {
+      return _mismasEleccionesCombo(eleccionesCombo, otrasEleccionesCombo);
     }
 
     if (sabores.length != otrosSabores.length) {
@@ -453,13 +392,11 @@ class ItemPedido {
       final actual = actuales[i];
       final otra = otras[i];
 
-      if (actual.componenteId !=
-          otra.componenteId) {
+      if (actual.componenteId != otra.componenteId) {
         return false;
       }
 
-      if (actual.productoElegido.id !=
-          otra.productoElegido.id) {
+      if (actual.productoElegido.id != otra.productoElegido.id) {
         return false;
       }
 
@@ -467,16 +404,29 @@ class ItemPedido {
         return false;
       }
 
-      if ((actual.recargoUnitario -
-                  otra.recargoUnitario)
-              .abs() >
-          0.001) {
+      if ((actual.recargoUnitario - otra.recargoUnitario).abs() > 0.001) {
         return false;
       }
     }
 
     return true;
   }
+}
+
+class PlataformaConfiguracion {
+  final int id;
+  final String nombre;
+  final double porcentaje;
+  final bool activo;
+  final int orden;
+
+  const PlataformaConfiguracion({
+    required this.id,
+    required this.nombre,
+    required this.porcentaje,
+    required this.activo,
+    required this.orden,
+  });
 }
 
 class RecargoConfiguracion {
@@ -538,6 +488,16 @@ class DatosPedidoVenta {
   final bool enviarPreparacion;
   final List<RecargoAplicado> recargos;
 
+  final double valorDomicilio;
+  final bool usaIndrive;
+
+  final String plataforma;
+  final double porcentajePlataforma;
+  final double descuentoPlataforma;
+
+  final bool esProgramado;
+  final DateTime? fechaProgramada;
+
   const DatosPedidoVenta({
     required this.nombrePedido,
     required this.tipoPedido,
@@ -546,23 +506,33 @@ class DatosPedidoVenta {
     required this.responsableDinero,
     required this.enviarPreparacion,
     required this.recargos,
+    this.valorDomicilio = 0,
+    this.usaIndrive = false,
+    this.plataforma = '',
+    this.porcentajePlataforma = 0,
+    this.descuentoPlataforma = 0,
+    this.esProgramado = false,
+    this.fechaProgramada,
   });
 
   bool get requiereCobroInmediato {
-    return estadoCobro ==
-        EstadoCobroVenta.pagado;
+    return !esProgramado && estadoCobro == EstadoCobroVenta.pagado;
   }
 
   bool get esDomicilio {
     return tipoPedido == TipoPedido.domicilio;
   }
 
+  bool get esPlataforma {
+    return plataforma.trim().isNotEmpty;
+  }
+
   double totalRecargos() {
-    return recargos.fold(
-      0,
-      (total, recargo) =>
-          total + recargo.valor,
-    );
+    return recargos.fold(0, (total, recargo) => total + recargo.valor);
+  }
+
+  double get totalExtras {
+    return totalRecargos() + (esDomicilio ? valorDomicilio : 0);
   }
 }
 
@@ -600,20 +570,16 @@ class PedidoPreparacion {
   });
 
   bool get estaPagado {
-    return estadoCobro ==
-            EstadoCobroVenta.pagado ||
-        estadoCobro ==
-            EstadoCobroVenta.entregado;
+    return estadoCobro == EstadoCobroVenta.pagado ||
+        estadoCobro == EstadoCobroVenta.entregado;
   }
 
   bool get pendienteDeCobro {
-    return estadoCobro ==
-        EstadoCobroVenta.pendientePago;
+    return estadoCobro == EstadoCobroVenta.pendientePago;
   }
 
   bool get dineroConRepartidor {
-    return estadoCobro ==
-        EstadoCobroVenta.cobradoRepartidor;
+    return estadoCobro == EstadoCobroVenta.cobradoRepartidor;
   }
 
   bool get puedeEnviarPreparacion {
@@ -636,8 +602,7 @@ class DetallePedidoPreparacion {
   final List<String> sabores;
 
   /// Componentes reales elegidos en combos nuevos.
-  final List<DetalleEleccionComboPreparacion>
-      eleccionesCombo;
+  final List<DetalleEleccionComboPreparacion> eleccionesCombo;
 
   const DetallePedidoPreparacion({
     required this.nombreProducto,
@@ -651,9 +616,7 @@ class DetallePedidoPreparacion {
 
   List<String> get descripcionesConfiguracion {
     if (eleccionesCombo.isNotEmpty) {
-      return eleccionesCombo
-          .map((eleccion) => eleccion.descripcion)
-          .toList();
+      return eleccionesCombo.map((eleccion) => eleccion.descripcion).toList();
     }
 
     return sabores;
@@ -678,8 +641,7 @@ class DetalleEleccionComboPreparacion {
   });
 
   String get descripcion {
-    final cantidadTexto =
-        cantidad > 1 ? '$cantidad x ' : '';
+    final cantidadTexto = cantidad > 1 ? '$cantidad x ' : '';
 
     final recargoTexto = recargoTotal > 0
         ? ' (+\$${recargoTotal.toStringAsFixed(2)})'
@@ -692,9 +654,7 @@ class DetalleEleccionComboPreparacion {
   }
 }
 
-String tipoPedidoBaseDatos(
-  TipoPedido tipo,
-) {
+String tipoPedidoBaseDatos(TipoPedido tipo) {
   switch (tipo) {
     case TipoPedido.local:
       return 'local';
@@ -707,9 +667,7 @@ String tipoPedidoBaseDatos(
   }
 }
 
-TipoPedido tipoPedidoDesdeBaseDatos(
-  dynamic valor,
-) {
+TipoPedido tipoPedidoDesdeBaseDatos(dynamic valor) {
   switch (valor?.toString()) {
     case 'para_llevar':
       return TipoPedido.paraLlevar;
@@ -723,9 +681,7 @@ TipoPedido tipoPedidoDesdeBaseDatos(
   }
 }
 
-String nombreTipoPedido(
-  TipoPedido tipo,
-) {
+String nombreTipoPedido(TipoPedido tipo) {
   switch (tipo) {
     case TipoPedido.local:
       return 'Local';
@@ -738,9 +694,7 @@ String nombreTipoPedido(
   }
 }
 
-String estadoCobroBaseDatos(
-  EstadoCobroVenta estado,
-) {
+String estadoCobroBaseDatos(EstadoCobroVenta estado) {
   switch (estado) {
     case EstadoCobroVenta.pagado:
       return 'pagado';
@@ -756,9 +710,7 @@ String estadoCobroBaseDatos(
   }
 }
 
-EstadoCobroVenta estadoCobroDesdeBaseDatos(
-  dynamic valor,
-) {
+EstadoCobroVenta estadoCobroDesdeBaseDatos(dynamic valor) {
   switch (valor?.toString()) {
     case 'pendiente_pago':
       return EstadoCobroVenta.pendientePago;
@@ -775,9 +727,7 @@ EstadoCobroVenta estadoCobroDesdeBaseDatos(
   }
 }
 
-String nombreEstadoCobro(
-  EstadoCobroVenta estado,
-) {
+String nombreEstadoCobro(EstadoCobroVenta estado) {
   switch (estado) {
     case EstadoCobroVenta.pagado:
       return 'Pagado';

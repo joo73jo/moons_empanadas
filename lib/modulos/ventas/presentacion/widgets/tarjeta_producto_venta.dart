@@ -45,9 +45,7 @@ class TarjetaProductoVenta extends StatelessWidget {
       decoration: BoxDecoration(
         color: ColoresApp.fondoSecundario,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.05),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Padding(
         padding: EdgeInsets.all(esCelular ? 12 : 14),
@@ -61,10 +59,7 @@ class TarjetaProductoVenta extends StatelessWidget {
                   height: esCelular ? 42 : 44,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [
-                        ColoresApp.principalClaro,
-                        ColoresApp.principal,
-                      ],
+                      colors: [ColoresApp.principalClaro, ColoresApp.principal],
                     ),
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -81,9 +76,7 @@ class TarjetaProductoVenta extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _colorStock.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(13),
-                    border: Border.all(
-                      color: _colorStock.withOpacity(0.45),
-                    ),
+                    border: Border.all(color: _colorStock.withOpacity(0.45)),
                   ),
                   child: Center(
                     child: Text(
@@ -113,14 +106,8 @@ class TarjetaProductoVenta extends StatelessWidget {
                       if (value == 'eliminar') onEliminar?.call();
                     },
                     itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: 'editar',
-                        child: Text('Editar'),
-                      ),
-                      PopupMenuItem(
-                        value: 'eliminar',
-                        child: Text('Eliminar'),
-                      ),
+                      PopupMenuItem(value: 'editar', child: Text('Editar')),
+                      PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
                     ],
                   ),
               ],

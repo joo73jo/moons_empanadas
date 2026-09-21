@@ -15,10 +15,7 @@ import '../../../reportes/presentacion/paginas/pagina_reportes.dart';
 class PaginaInicio extends StatelessWidget {
   final Usuario usuario;
 
-  const PaginaInicio({
-    super.key,
-    required this.usuario,
-  });
+  const PaginaInicio({super.key, required this.usuario});
 
   String _obtenerNombreRol(String rol) {
     switch (rol) {
@@ -103,66 +100,52 @@ class PaginaInicio extends StatelessWidget {
 
   void _abrirModulo(BuildContext context, _ModuloInicio modulo) {
     if (modulo.titulo == 'Ventas') {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => PaginaVentas(usuario: usuario),
-        ),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => PaginaVentas(usuario: usuario)));
       return;
     }
 
     if (modulo.titulo == 'Caja') {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => PaginaCaja(usuario: usuario),
-        ),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => PaginaCaja(usuario: usuario)));
       return;
     }
 
     if (modulo.titulo == 'Historial ventas') {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const PaginaHistorialVentas(),
-        ),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const PaginaHistorialVentas()));
       return;
     }
 
     if (modulo.titulo == 'Inventario') {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => PaginaInventario(usuario: usuario),
-        ),
+        MaterialPageRoute(builder: (_) => PaginaInventario(usuario: usuario)),
       );
       return;
     }
 
     if (modulo.titulo == 'Recetas') {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => PaginaRecetas(usuario: usuario),
-        ),
+        MaterialPageRoute(builder: (_) => PaginaRecetas(usuario: usuario)),
       );
       return;
     }
 
     if (modulo.titulo == 'Producción') {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => PaginaProduccion(usuario: usuario),
-        ),
+        MaterialPageRoute(builder: (_) => PaginaProduccion(usuario: usuario)),
       );
       return;
     }
     if (modulo.titulo == 'Reportes') {
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => const PaginaReportes(),
-    ),
-  );
-  return;
-}
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const PaginaReportes()));
+      return;
+    }
   }
 
   @override
@@ -184,9 +167,7 @@ class PaginaInicio extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: () {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => const PaginaLogin(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const PaginaLogin()),
                   );
                 },
                 icon: const Icon(
@@ -223,9 +204,7 @@ class PaginaInicio extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: ColoresApp.superficie,
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.06),
-                      ),
+                      border: Border.all(color: Colors.white.withOpacity(0.06)),
                     ),
                     child: Row(
                       children: [
@@ -276,11 +255,11 @@ class PaginaInicio extends StatelessWidget {
                     itemCount: modulos.length,
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 280,
-                      mainAxisExtent: 170,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
+                          maxCrossAxisExtent: 280,
+                          mainAxisExtent: 170,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
                     itemBuilder: (context, index) {
                       final modulo = modulos[index];
                       return _TarjetaModulo(
@@ -303,10 +282,7 @@ class _TarjetaModulo extends StatelessWidget {
   final _ModuloInicio modulo;
   final VoidCallback onTap;
 
-  const _TarjetaModulo({
-    required this.modulo,
-    required this.onTap,
-  });
+  const _TarjetaModulo({required this.modulo, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -317,9 +293,7 @@ class _TarjetaModulo extends StatelessWidget {
         decoration: BoxDecoration(
           color: ColoresApp.superficie,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.06),
-          ),
+          border: Border.all(color: Colors.white.withOpacity(0.06)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(18),
@@ -331,18 +305,11 @@ class _TarjetaModulo extends StatelessWidget {
                 height: 58,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [
-                      ColoresApp.principalClaro,
-                      ColoresApp.principal,
-                    ],
+                    colors: [ColoresApp.principalClaro, ColoresApp.principal],
                   ),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(
-                  modulo.icono,
-                  color: Colors.black,
-                  size: 28,
-                ),
+                child: Icon(modulo.icono, color: Colors.black, size: 28),
               ),
               const Spacer(),
               Text(

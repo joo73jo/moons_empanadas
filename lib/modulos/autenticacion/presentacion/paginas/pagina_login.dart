@@ -99,9 +99,7 @@ class _PaginaLoginState extends State<PaginaLogin>
       });
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => PaginaInicio(usuario: usuario),
-        ),
+        MaterialPageRoute(builder: (_) => PaginaInicio(usuario: usuario)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -138,9 +136,7 @@ class _PaginaLoginState extends State<PaginaLogin>
               children: [
                 Positioned.fill(
                   child: CustomPaint(
-                    painter: _CieloPainter(
-                      progreso: _controlador.value,
-                    ),
+                    painter: _CieloPainter(progreso: _controlador.value),
                   ),
                 ),
                 Center(
@@ -155,14 +151,9 @@ class _PaginaLoginState extends State<PaginaLogin>
                       gradient: const LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0xFF242424),
-                          Color(0xFF1A1A1A),
-                        ],
+                        colors: [Color(0xFF242424), Color(0xFF1A1A1A)],
                       ),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.06),
-                      ),
+                      border: Border.all(color: Colors.white.withOpacity(0.06)),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.45),
@@ -336,20 +327,11 @@ class _CampoLogin extends StatelessWidget {
       controller: controller,
       obscureText: esContrasena,
       onSubmitted: onSubmitted,
-      style: const TextStyle(
-        color: ColoresApp.textoPrincipal,
-        fontSize: 15,
-      ),
+      style: const TextStyle(color: ColoresApp.textoPrincipal, fontSize: 15),
       decoration: InputDecoration(
         hintText: etiqueta,
-        hintStyle: const TextStyle(
-          color: ColoresApp.textoSecundario,
-        ),
-        prefixIcon: Icon(
-          icono,
-          color: ColoresApp.principal,
-          size: 20,
-        ),
+        hintStyle: const TextStyle(color: ColoresApp.textoSecundario),
+        prefixIcon: Icon(icono, color: ColoresApp.principal, size: 20),
         suffixIcon: sufijo,
         filled: true,
         fillColor: const Color(0xFF121212),
@@ -359,16 +341,11 @@ class _CampoLogin extends StatelessWidget {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.10),
-          ),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(
-            color: ColoresApp.principal,
-            width: 1.4,
-          ),
+          borderSide: const BorderSide(color: ColoresApp.principal, width: 1.4),
         ),
       ),
     );
@@ -389,17 +366,18 @@ class _CieloPainter extends CustomPainter {
 
   void _dibujarNeblina(Canvas canvas, Size size) {
     final paint1 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          ColoresApp.principal.withOpacity(0.10),
-          Colors.transparent,
-        ],
-      ).createShader(
-        Rect.fromCircle(
-          center: Offset(size.width * 0.08, size.height * 0.06),
-          radius: size.width * 0.16,
-        ),
-      );
+      ..shader =
+          RadialGradient(
+            colors: [
+              ColoresApp.principal.withOpacity(0.10),
+              Colors.transparent,
+            ],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(size.width * 0.08, size.height * 0.06),
+              radius: size.width * 0.16,
+            ),
+          );
 
     canvas.drawCircle(
       Offset(size.width * 0.08, size.height * 0.06),
@@ -408,17 +386,15 @@ class _CieloPainter extends CustomPainter {
     );
 
     final paint2 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          Colors.white.withOpacity(0.025),
-          Colors.transparent,
-        ],
-      ).createShader(
-        Rect.fromCircle(
-          center: Offset(size.width * 0.82, size.height * 0.22),
-          radius: size.width * 0.20,
-        ),
-      );
+      ..shader =
+          RadialGradient(
+            colors: [Colors.white.withOpacity(0.025), Colors.transparent],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(size.width * 0.82, size.height * 0.22),
+              radius: size.width * 0.20,
+            ),
+          );
 
     canvas.drawCircle(
       Offset(size.width * 0.82, size.height * 0.22),
@@ -486,16 +462,8 @@ class _CieloPainter extends CustomPainter {
           ..color = Colors.white.withOpacity(brillo * 0.55)
           ..strokeWidth = 0.6;
 
-        canvas.drawLine(
-          Offset(dx - 3, dy),
-          Offset(dx + 3, dy),
-          cruz,
-        );
-        canvas.drawLine(
-          Offset(dx, dy - 3),
-          Offset(dx, dy + 3),
-          cruz,
-        );
+        canvas.drawLine(Offset(dx - 3, dy), Offset(dx + 3, dy), cruz);
+        canvas.drawLine(Offset(dx, dy - 3), Offset(dx, dy + 3), cruz);
       }
     }
   }

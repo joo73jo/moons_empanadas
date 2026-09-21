@@ -128,7 +128,8 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
     if (q.isEmpty) return _ventas;
 
     return _ventas.where((venta) {
-      final coincideVenta = venta.id.toString().contains(q) ||
+      final coincideVenta =
+          venta.id.toString().contains(q) ||
           venta.vendedorNombre.toLowerCase().contains(q) ||
           venta.vendedorLogin.toLowerCase().contains(q) ||
           venta.estado.toLowerCase().contains(q) ||
@@ -153,10 +154,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark(),
-          child: child!,
-        );
+        return Theme(data: ThemeData.dark(), child: child!);
       },
     );
 
@@ -177,10 +175,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark(),
-          child: child!,
-        );
+        return Theme(data: ThemeData.dark(), child: child!);
       },
     );
 
@@ -239,9 +234,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
               style: const TextStyle(color: ColoresApp.textoPrincipal),
               decoration: InputDecoration(
                 labelText: 'Razón de anulación',
-                labelStyle: const TextStyle(
-                  color: ColoresApp.textoSecundario,
-                ),
+                labelStyle: const TextStyle(color: ColoresApp.textoSecundario),
                 filled: true,
                 fillColor: ColoresApp.fondoSecundario,
                 border: OutlineInputBorder(
@@ -406,9 +399,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                       ? const Center(
                           child: Text(
                             'No hay detalles para esta venta.',
-                            style: TextStyle(
-                              color: ColoresApp.textoSecundario,
-                            ),
+                            style: TextStyle(color: ColoresApp.textoSecundario),
                           ),
                         )
                       : ListView.separated(
@@ -502,10 +493,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                       '\$${detalle.precioUnitario.toStringAsFixed(2)}',
                     ),
                     const SizedBox(height: 8),
-                    _datoDetalleCaja(
-                      'Cantidad',
-                      '${detalle.cantidad}',
-                    ),
+                    _datoDetalleCaja('Cantidad', '${detalle.cantidad}'),
                     const SizedBox(height: 8),
                     _datoDetalleCaja(
                       'Subtotal',
@@ -554,33 +542,30 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: List.generate(
-                    detalle.sabores.length,
-                    (i) {
-                      final sabor = detalle.sabores[i];
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
+                  children: List.generate(detalle.sabores.length, (i) {
+                    final sabor = detalle.sabores[i];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: ColoresApp.principal.withOpacity(0.16),
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: ColoresApp.principal.withOpacity(0.16),
-                          ),
+                      ),
+                      child: Text(
+                        '${i + 1}. $sabor',
+                        style: const TextStyle(
+                          color: ColoresApp.textoPrincipal,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
-                        child: Text(
-                          '${i + 1}. $sabor',
-                          style: const TextStyle(
-                            color: ColoresApp.textoPrincipal,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  }),
                 ),
               ],
             ],
@@ -615,12 +600,14 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                 Text(
                   'Total: \$${venta.total.toStringAsFixed(2)}',
                   style: TextStyle(
-                    color:
-                        venta.estaAnulada ? Colors.redAccent : ColoresApp.principal,
+                    color: venta.estaAnulada
+                        ? Colors.redAccent
+                        : ColoresApp.principal,
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
-                    decoration:
-                        venta.estaAnulada ? TextDecoration.lineThrough : null,
+                    decoration: venta.estaAnulada
+                        ? TextDecoration.lineThrough
+                        : null,
                   ),
                 ),
               ],
@@ -639,12 +626,14 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                 Text(
                   'Total: \$${venta.total.toStringAsFixed(2)}',
                   style: TextStyle(
-                    color:
-                        venta.estaAnulada ? Colors.redAccent : ColoresApp.principal,
+                    color: venta.estaAnulada
+                        ? Colors.redAccent
+                        : ColoresApp.principal,
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
-                    decoration:
-                        venta.estaAnulada ? TextDecoration.lineThrough : null,
+                    decoration: venta.estaAnulada
+                        ? TextDecoration.lineThrough
+                        : null,
                   ),
                 ),
               ],
@@ -663,9 +652,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
       decoration: BoxDecoration(
         color: Colors.black,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,7 +668,9 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
           Text(
             valor,
             style: TextStyle(
-              color: resaltar ? ColoresApp.principal : ColoresApp.textoPrincipal,
+              color: resaltar
+                  ? ColoresApp.principal
+                  : ColoresApp.textoPrincipal,
               fontWeight: FontWeight.w900,
               fontSize: 14,
             ),
@@ -697,9 +686,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
     final esCelular = _esCelular(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Historial de ventas'),
-      ),
+      appBar: AppBar(title: const Text('Historial de ventas')),
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -720,9 +707,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                   decoration: BoxDecoration(
                     color: ColoresApp.superficie,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.06),
-                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.06)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -827,8 +812,9 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
   }
 
   Widget _filtrosFecha(bool esCelular) {
-    final inicioTexto =
-        _fechaInicio == null ? 'Desde' : _formatearFecha(_fechaInicio!);
+    final inicioTexto = _fechaInicio == null
+        ? 'Desde'
+        : _formatearFecha(_fechaInicio!);
     final finTexto = _fechaFin == null ? 'Hasta' : _formatearFecha(_fechaFin!);
 
     if (esCelular) {
@@ -874,11 +860,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
         ),
         if (_fechaInicio != null || _fechaFin != null) ...[
           const SizedBox(width: 10),
-          SizedBox(
-            width: 160,
-            height: 46,
-            child: _botonLimpiarFechas(),
-          ),
+          SizedBox(width: 160, height: 46, child: _botonLimpiarFechas()),
         ],
       ],
     );
@@ -889,21 +871,14 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         foregroundColor: ColoresApp.textoPrincipal,
-        side: BorderSide(
-          color: Colors.white.withOpacity(0.12),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        side: BorderSide(color: Colors.white.withOpacity(0.12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       icon: const Icon(
         Icons.calendar_month_rounded,
         color: ColoresApp.principal,
       ),
-      label: Text(
-        texto,
-        style: const TextStyle(fontWeight: FontWeight.w800),
-      ),
+      label: Text(texto, style: const TextStyle(fontWeight: FontWeight.w800)),
     );
   }
 
@@ -912,12 +887,8 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
       onPressed: _limpiarFechas,
       style: OutlinedButton.styleFrom(
         foregroundColor: Colors.redAccent,
-        side: BorderSide(
-          color: Colors.redAccent.withOpacity(0.45),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        side: BorderSide(color: Colors.redAccent.withOpacity(0.45)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       icon: const Icon(Icons.close_rounded),
       label: const Text(
@@ -954,9 +925,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
                     children: [
                       _iconoVenta(venta),
                       const SizedBox(width: 12),
-                      Expanded(
-                        child: _infoVenta(venta),
-                      ),
+                      Expanded(child: _infoVenta(venta)),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -969,9 +938,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
               children: [
                 _iconoVenta(venta),
                 const SizedBox(width: 14),
-                Expanded(
-                  child: _infoVenta(venta),
-                ),
+                Expanded(child: _infoVenta(venta)),
                 const SizedBox(width: 12),
                 _resumenVenta(venta, compacto: false),
               ],
@@ -989,23 +956,15 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
       decoration: BoxDecoration(
         gradient: venta.estaAnulada
             ? const LinearGradient(
-                colors: [
-                  Colors.redAccent,
-                  Color(0xFF8B0000),
-                ],
+                colors: [Colors.redAccent, Color(0xFF8B0000)],
               )
             : const LinearGradient(
-                colors: [
-                  ColoresApp.principalClaro,
-                  ColoresApp.principal,
-                ],
+                colors: [ColoresApp.principalClaro, ColoresApp.principal],
               ),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Icon(
-        venta.estaAnulada
-            ? Icons.cancel_rounded
-            : Icons.receipt_long_rounded,
+        venta.estaAnulada ? Icons.cancel_rounded : Icons.receipt_long_rounded,
         color: Colors.black,
       ),
     );
@@ -1033,10 +992,7 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
             ),
             if (venta.estaAnulada)
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 5,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
                   color: Colors.redAccent.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
@@ -1091,13 +1047,11 @@ class _PaginaHistorialVentasState extends State<PaginaHistorialVentas> {
     );
   }
 
-  Widget _resumenVenta(
-    VentaHistorial venta, {
-    required bool compacto,
-  }) {
+  Widget _resumenVenta(VentaHistorial venta, {required bool compacto}) {
     final contenido = Column(
-      crossAxisAlignment:
-          compacto ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+      crossAxisAlignment: compacto
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.end,
       children: [
         Text(
           '\$${venta.total.toStringAsFixed(2)}',

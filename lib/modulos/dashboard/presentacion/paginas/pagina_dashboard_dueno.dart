@@ -4,6 +4,7 @@ import '../../../../nucleo/tema/colores_app.dart';
 import '../../../autenticacion/dominio/modelos/usuario.dart';
 import '../../../autenticacion/presentacion/paginas/pagina_login.dart';
 import '../../../caja/presentacion/paginas/pagina_caja.dart';
+import '../../../contabilidad/presentacion/paginas/pagina_contabilidad.dart';
 import '../../../dashboard/presentacion/widgets/dashboard_supabase.dart';
 import '../../../inventario/presentacion/paginas/pagina_inventario.dart';
 import '../../../produccion/presentacion/paginas/pagina_produccion.dart';
@@ -15,10 +16,7 @@ import '../../../ventas/presentacion/paginas/pagina_ventas.dart';
 class PaginaDashboardDueno extends StatefulWidget {
   final Usuario usuario;
 
-  const PaginaDashboardDueno({
-    super.key,
-    required this.usuario,
-  });
+  const PaginaDashboardDueno({super.key, required this.usuario});
 
   @override
   State<PaginaDashboardDueno> createState() => _PaginaDashboardDuenoState();
@@ -72,17 +70,13 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
   }
 
   void _abrir(BuildContext context, Widget pagina) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => pagina),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => pagina));
   }
 
   void _cerrarSesion() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const PaginaLogin(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const PaginaLogin()));
   }
 
   bool _esCelular(BuildContext context) {
@@ -138,43 +132,39 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
         color: ColoresApp.fondoPrincipal,
         child: _cargando
             ? const Center(
-                child: CircularProgressIndicator(
-                  color: ColoresApp.principal,
-                ),
+                child: CircularProgressIndicator(color: ColoresApp.principal),
               )
             : resumen == null
-                ? const Center(
-                    child: Text(
-                      'No se pudo cargar el dashboard.',
-                      style: TextStyle(
-                        color: ColoresApp.textoSecundario,
-                      ),
-                    ),
-                  )
-                : RefreshIndicator(
-                    color: ColoresApp.principal,
-                    backgroundColor: ColoresApp.superficie,
-                    onRefresh: _cargar,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.all(esCelular ? 14 : 24),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1300),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _cabecera(resumen, esCelular),
-                              SizedBox(height: esCelular ? 14 : 22),
-                              _metricas(resumen),
-                              SizedBox(height: esCelular ? 14 : 22),
-                              _contenidoPrincipal(resumen),
-                            ],
-                          ),
-                        ),
+            ? const Center(
+                child: Text(
+                  'No se pudo cargar el dashboard.',
+                  style: TextStyle(color: ColoresApp.textoSecundario),
+                ),
+              )
+            : RefreshIndicator(
+                color: ColoresApp.principal,
+                backgroundColor: ColoresApp.superficie,
+                onRefresh: _cargar,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.all(esCelular ? 14 : 24),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1300),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _cabecera(resumen, esCelular),
+                          SizedBox(height: esCelular ? 14 : 22),
+                          _metricas(resumen),
+                          SizedBox(height: esCelular ? 14 : 22),
+                          _contenidoPrincipal(resumen),
+                        ],
                       ),
                     ),
                   ),
+                ),
+              ),
       ),
     );
   }
@@ -186,9 +176,7 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
         borderRadius: BorderRadius.circular(esCelular ? 22 : 24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: esCelular
           ? Column(
@@ -277,10 +265,7 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
 
   Widget _estadoCaja(DashboardResumen resumen) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: ColoresApp.fondoSecundario,
         borderRadius: BorderRadius.circular(12),
@@ -376,15 +361,9 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              flex: 3,
-              child: _bloqueAccesos(esCelular: false),
-            ),
+            Expanded(flex: 3, child: _bloqueAccesos(esCelular: false)),
             const SizedBox(width: 18),
-            Expanded(
-              flex: 2,
-              child: _bloqueAlertas(resumen, esCelular: false),
-            ),
+            Expanded(flex: 2, child: _bloqueAlertas(resumen, esCelular: false)),
           ],
         );
       },
@@ -398,9 +377,7 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,10 +393,7 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
           const SizedBox(height: 8),
           const Text(
             'Módulos principales del sistema',
-            style: TextStyle(
-              color: ColoresApp.textoSecundario,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: ColoresApp.textoSecundario, fontSize: 14),
           ),
           const SizedBox(height: 18),
           LayoutBuilder(
@@ -452,32 +426,27 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
                     titulo: 'Reportes',
                     subtitulo: 'Centro analítico',
                     icono: Icons.bar_chart_rounded,
-                    onTap: () => _abrir(
-                      context,
-                      const PaginaReportes(),
-                    ),
+                    onTap: () => _abrir(context, const PaginaReportes()),
+                  ),
+                  _tarjetaAcceso(
+                    titulo: 'Contabilidad',
+                    subtitulo: 'Resumen y gastos',
+                    icono: Icons.account_balance_rounded,
+                    onTap: () => _abrir(context, const PaginaContabilidad()),
                   ),
                   _tarjetaAcceso(
                     titulo: 'Ventas',
                     subtitulo: 'Cobrar y registrar',
                     icono: Icons.point_of_sale_rounded,
-                    onTap: () => _abrir(
-                      context,
-                      PaginaVentas(
-                        usuario: widget.usuario,
-                      ),
-                    ),
+                    onTap: () =>
+                        _abrir(context, PaginaVentas(usuario: widget.usuario)),
                   ),
                   _tarjetaAcceso(
                     titulo: 'Caja',
                     subtitulo: 'Apertura y cierre',
                     icono: Icons.account_balance_wallet_rounded,
-                    onTap: () => _abrir(
-                      context,
-                      PaginaCaja(
-                        usuario: widget.usuario,
-                      ),
-                    ),
+                    onTap: () =>
+                        _abrir(context, PaginaCaja(usuario: widget.usuario)),
                   ),
                   _tarjetaAcceso(
                     titulo: 'Inventario',
@@ -485,21 +454,15 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
                     icono: Icons.inventory_2_rounded,
                     onTap: () => _abrir(
                       context,
-                      PaginaInventario(
-                        usuario: widget.usuario,
-                      ),
+                      PaginaInventario(usuario: widget.usuario),
                     ),
                   ),
                   _tarjetaAcceso(
                     titulo: 'Recetas',
                     subtitulo: 'Fórmulas',
                     icono: Icons.menu_book_rounded,
-                    onTap: () => _abrir(
-                      context,
-                      PaginaRecetas(
-                        usuario: widget.usuario,
-                      ),
-                    ),
+                    onTap: () =>
+                        _abrir(context, PaginaRecetas(usuario: widget.usuario)),
                   ),
                   _tarjetaAcceso(
                     titulo: 'Producción',
@@ -507,19 +470,14 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
                     icono: Icons.bakery_dining_rounded,
                     onTap: () => _abrir(
                       context,
-                      PaginaProduccion(
-                        usuario: widget.usuario,
-                      ),
+                      PaginaProduccion(usuario: widget.usuario),
                     ),
                   ),
                   _tarjetaAcceso(
                     titulo: 'Historial',
                     subtitulo: 'Ventas recientes',
                     icono: Icons.receipt_long_rounded,
-                    onTap: () => _abrir(
-                      context,
-                      const PaginaHistorialVentas(),
-                    ),
+                    onTap: () => _abrir(context, const PaginaHistorialVentas()),
                   ),
                 ],
               );
@@ -530,19 +488,14 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
     );
   }
 
-  Widget _bloqueAlertas(
-    DashboardResumen resumen, {
-    required bool esCelular,
-  }) {
+  Widget _bloqueAlertas(DashboardResumen resumen, {required bool esCelular}) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(esCelular ? 18 : 20),
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,9 +520,7 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
           if (resumen.alertas.isEmpty)
             const Text(
               'No hay alertas por ahora.',
-              style: TextStyle(
-                color: ColoresApp.textoSecundario,
-              ),
+              style: TextStyle(color: ColoresApp.textoSecundario),
             )
           else
             ...resumen.alertas.map(
@@ -613,10 +564,7 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
             'Ingredientes en crítico',
             '${resumen.ingredientesCriticos}',
           ),
-          _filaMiniResumen(
-            'Productos bajos',
-            '${resumen.productosBajos}',
-          ),
+          _filaMiniResumen('Productos bajos', '${resumen.productosBajos}'),
         ],
       ),
     );
@@ -633,9 +581,7 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -727,9 +673,7 @@ class _PaginaDashboardDuenoState extends State<PaginaDashboardDueno> {
           Expanded(
             child: Text(
               titulo,
-              style: const TextStyle(
-                color: ColoresApp.textoSecundario,
-              ),
+              style: const TextStyle(color: ColoresApp.textoSecundario),
             ),
           ),
           Text(

@@ -8,10 +8,7 @@ import '../widgets/inventario_supabase.dart';
 class PaginaInventario extends StatefulWidget {
   final Usuario usuario;
 
-  const PaginaInventario({
-    super.key,
-    required this.usuario,
-  });
+  const PaginaInventario({super.key, required this.usuario});
 
   @override
   State<PaginaInventario> createState() => _PaginaInventarioState();
@@ -153,61 +150,61 @@ class _PaginaInventarioState extends State<PaginaInventario> {
   }
 
   Future<void> _desactivarItem(ItemInventario item) async {
-  final confirmar = await showDialog<bool>(
-    context: context,
-    builder: (_) => AlertDialog(
-      backgroundColor: ColoresApp.superficie,
-      title: const Text(
-        'Desactivar ingrediente',
-        style: TextStyle(
-          color: ColoresApp.textoPrincipal,
-          fontWeight: FontWeight.w900,
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: ColoresApp.superficie,
+        title: const Text(
+          'Desactivar ingrediente',
+          style: TextStyle(
+            color: ColoresApp.textoPrincipal,
+            fontWeight: FontWeight.w900,
+          ),
         ),
-      ),
-      content: Text(
-        '¿Seguro que deseas desactivar "${item.nombre}"?\n\nYa no aparecerá como ingrediente activo en el inventario.',
-        style: const TextStyle(
-          color: ColoresApp.textoSecundario,
-          height: 1.35,
+        content: Text(
+          '¿Seguro que deseas desactivar "${item.nombre}"?\n\nYa no aparecerá como ingrediente activo en el inventario.',
+          style: const TextStyle(
+            color: ColoresApp.textoSecundario,
+            height: 1.35,
+          ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text(
-            'Cancelar',
-            style: TextStyle(
-              color: ColoresApp.textoSecundario,
-              fontWeight: FontWeight.w700,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(
+                color: ColoresApp.textoSecundario,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            foregroundColor: Colors.white,
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'Sí, desactivar',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
           ),
-          child: const Text(
-            'Sí, desactivar',
-            style: TextStyle(fontWeight: FontWeight.w900),
-          ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
 
-  if (confirmar != true) return;
+    if (confirmar != true) return;
 
-  try {
-    await InventarioSupabase.desactivarItem(item.id);
-    if (!mounted) return;
-    _mostrarMensaje('Ingrediente desactivado.');
-    await _cargarItems();
-  } catch (e) {
-    _mostrarMensaje('Error desactivando ingrediente: $e');
+    try {
+      await InventarioSupabase.desactivarItem(item.id);
+      if (!mounted) return;
+      _mostrarMensaje('Ingrediente desactivado.');
+      await _cargarItems();
+    } catch (e) {
+      _mostrarMensaje('Error desactivando ingrediente: $e');
+    }
   }
-}
 
   Future<void> _registrarMovimiento(ItemInventario item) async {
     final resultado = await showDialog<ResultadoMovimientoInventario>(
@@ -236,8 +233,9 @@ class _PaginaInventarioState extends State<PaginaInventario> {
 
   Future<void> _verMovimientos(ItemInventario item) async {
     try {
-      final movimientos =
-          await InventarioSupabase.obtenerMovimientosPorItem(item.id);
+      final movimientos = await InventarioSupabase.obtenerMovimientosPorItem(
+        item.id,
+      );
 
       if (!mounted) return;
 
@@ -255,9 +253,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
             decoration: BoxDecoration(
               color: ColoresApp.superficie,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.06),
-              ),
+              border: Border.all(color: Colors.white.withOpacity(0.06)),
             ),
             child: Column(
               children: [
@@ -290,9 +286,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
                       ? const Center(
                           child: Text(
                             'No hay movimientos registrados.',
-                            style: TextStyle(
-                              color: ColoresApp.textoSecundario,
-                            ),
+                            style: TextStyle(color: ColoresApp.textoSecundario),
                           ),
                         )
                       : ListView.separated(
@@ -356,14 +350,14 @@ class _PaginaInventarioState extends State<PaginaInventario> {
                                             const SizedBox(height: 8),
                                             _datoMovimiento(
                                               'Antes',
-                                              mov.stockAnterior
-                                                  .toStringAsFixed(3),
+                                              mov.stockAnterior.toStringAsFixed(
+                                                3,
+                                              ),
                                             ),
                                             const SizedBox(height: 8),
                                             _datoMovimiento(
                                               'Nuevo',
-                                              mov.stockNuevo
-                                                  .toStringAsFixed(3),
+                                              mov.stockNuevo.toStringAsFixed(3),
                                             ),
                                           ],
                                         );
@@ -380,15 +374,15 @@ class _PaginaInventarioState extends State<PaginaInventario> {
                                           Expanded(
                                             child: _datoMovimiento(
                                               'Antes',
-                                              mov.stockAnterior
-                                                  .toStringAsFixed(3),
+                                              mov.stockAnterior.toStringAsFixed(
+                                                3,
+                                              ),
                                             ),
                                           ),
                                           Expanded(
                                             child: _datoMovimiento(
                                               'Nuevo',
-                                              mov.stockNuevo
-                                                  .toStringAsFixed(3),
+                                              mov.stockNuevo.toStringAsFixed(3),
                                             ),
                                           ),
                                         ],
@@ -489,10 +483,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
                       totalIngredientes: _items.length,
                     ),
                     const SizedBox(height: 18),
-                    _panelIngredientes(
-                      items: items,
-                      esCelular: esCelular,
-                    ),
+                    _panelIngredientes(items: items, esCelular: esCelular),
                   ],
                 ),
               ),
@@ -522,11 +513,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
           mainAxisSpacing: 12,
           childAspectRatio: (ancho / columnas) / alto,
           children: [
-            _tarjetaResumen(
-              'Críticos',
-              '$totalCriticos',
-              Colors.redAccent,
-            ),
+            _tarjetaResumen('Críticos', '$totalCriticos', Colors.redAccent),
             _tarjetaResumen(
               'Mínimos',
               '$totalMinimos',
@@ -553,9 +540,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -587,9 +572,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
             style: const TextStyle(color: ColoresApp.textoPrincipal),
             decoration: InputDecoration(
               hintText: 'Buscar ingrediente...',
-              hintStyle: const TextStyle(
-                color: ColoresApp.textoSecundario,
-              ),
+              hintStyle: const TextStyle(color: ColoresApp.textoSecundario),
               prefixIcon: const Icon(
                 Icons.search_rounded,
                 color: ColoresApp.principal,
@@ -606,9 +589,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
             const SizedBox(
               height: 260,
               child: Center(
-                child: CircularProgressIndicator(
-                  color: ColoresApp.principal,
-                ),
+                child: CircularProgressIndicator(color: ColoresApp.principal),
               ),
             )
           else if (items.isEmpty)
@@ -708,10 +689,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
     );
   }
 
-  Widget _encabezadoItem(
-    ItemInventario item, {
-    bool conIcono = true,
-  }) {
+  Widget _encabezadoItem(ItemInventario item, {bool conIcono = true}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -721,17 +699,11 @@ class _PaginaInventarioState extends State<PaginaInventario> {
             height: 54,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  ColoresApp.principalClaro,
-                  ColoresApp.principal,
-                ],
+                colors: [ColoresApp.principalClaro, ColoresApp.principal],
               ),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(
-              Icons.inventory_2_rounded,
-              color: Colors.black,
-            ),
+            child: const Icon(Icons.inventory_2_rounded, color: Colors.black),
           ),
           const SizedBox(width: 12),
         ],
@@ -766,10 +738,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
         ),
         const SizedBox(width: 8),
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 6,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: _colorNivel(item).withOpacity(0.14),
             borderRadius: BorderRadius.circular(12),
@@ -796,34 +765,20 @@ class _PaginaInventarioState extends State<PaginaInventario> {
           'Stock',
           '${item.stockActual.toStringAsFixed(3)} ${item.unidadMedida}',
         ),
-        _chipDatoItem(
-          'Mínimo',
-          item.stockMinimo.toStringAsFixed(3),
-        ),
-        _chipDatoItem(
-          'Crítico',
-          item.stockCritico.toStringAsFixed(3),
-        ),
-        _chipDatoItem(
-          'Costo',
-          '\$${item.costoUnitario.toStringAsFixed(4)}',
-        ),
+        _chipDatoItem('Mínimo', item.stockMinimo.toStringAsFixed(3)),
+        _chipDatoItem('Crítico', item.stockCritico.toStringAsFixed(3)),
+        _chipDatoItem('Costo', '\$${item.costoUnitario.toStringAsFixed(4)}'),
       ],
     );
   }
 
   Widget _chipDatoItem(String titulo, String valor) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 11,
-        vertical: 9,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       decoration: BoxDecoration(
         color: Colors.black,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: RichText(
         text: TextSpan(
@@ -849,10 +804,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
     );
   }
 
-  Widget _accionesItem(
-    ItemInventario item, {
-    required bool compacto,
-  }) {
+  Widget _accionesItem(ItemInventario item, {required bool compacto}) {
     if (compacto) {
       return Column(
         children: [
@@ -872,17 +824,11 @@ class _PaginaInventarioState extends State<PaginaInventario> {
             Row(
               children: [
                 Expanded(
-                  child: SizedBox(
-                    height: 44,
-                    child: _botonEditar(item),
-                  ),
+                  child: SizedBox(height: 44, child: _botonEditar(item)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: SizedBox(
-                    height: 44,
-                    child: _botonDesactivar(item),
-                  ),
+                  child: SizedBox(height: 44, child: _botonDesactivar(item)),
                 ),
               ],
             ),
@@ -893,30 +839,14 @@ class _PaginaInventarioState extends State<PaginaInventario> {
 
     return Column(
       children: [
-        SizedBox(
-          width: 150,
-          height: 42,
-          child: _botonMovimiento(item),
-        ),
+        SizedBox(width: 150, height: 42, child: _botonMovimiento(item)),
         const SizedBox(height: 8),
-        SizedBox(
-          width: 150,
-          height: 42,
-          child: _botonHistorial(item),
-        ),
+        SizedBox(width: 150, height: 42, child: _botonHistorial(item)),
         if (_esDueno) ...[
           const SizedBox(height: 8),
-          SizedBox(
-            width: 150,
-            height: 42,
-            child: _botonEditar(item),
-          ),
+          SizedBox(width: 150, height: 42, child: _botonEditar(item)),
           const SizedBox(height: 8),
-          SizedBox(
-            width: 150,
-            height: 42,
-            child: _botonDesactivar(item),
-          ),
+          SizedBox(width: 150, height: 42, child: _botonDesactivar(item)),
         ],
       ],
     );
@@ -928,9 +858,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
       style: ElevatedButton.styleFrom(
         backgroundColor: ColoresApp.principal,
         foregroundColor: Colors.black,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       child: const Text(
         'Movimiento',
@@ -944,12 +872,8 @@ class _PaginaInventarioState extends State<PaginaInventario> {
       onPressed: () => _verMovimientos(item),
       style: OutlinedButton.styleFrom(
         foregroundColor: ColoresApp.textoPrincipal,
-        side: BorderSide(
-          color: Colors.white.withOpacity(0.12),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        side: BorderSide(color: Colors.white.withOpacity(0.12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       child: const Text(
         'Ver historial',
@@ -963,12 +887,8 @@ class _PaginaInventarioState extends State<PaginaInventario> {
       onPressed: () => _editarItem(item),
       style: OutlinedButton.styleFrom(
         foregroundColor: ColoresApp.textoPrincipal,
-        side: BorderSide(
-          color: Colors.white.withOpacity(0.12),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        side: BorderSide(color: Colors.white.withOpacity(0.12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       child: const Text(
         'Editar',
@@ -982,12 +902,8 @@ class _PaginaInventarioState extends State<PaginaInventario> {
       onPressed: () => _desactivarItem(item),
       style: OutlinedButton.styleFrom(
         foregroundColor: Colors.redAccent,
-        side: BorderSide(
-          color: Colors.redAccent.withOpacity(0.45),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        side: BorderSide(color: Colors.redAccent.withOpacity(0.45)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       child: const Text(
         'Desactivar',
@@ -1002,9 +918,7 @@ class _PaginaInventarioState extends State<PaginaInventario> {
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

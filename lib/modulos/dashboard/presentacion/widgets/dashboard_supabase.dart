@@ -51,13 +51,16 @@ class DashboardSupabase {
 
     final productosResponse = await cliente
         .from('productos')
-        .select('id, nombre, stock_actual, stock_minimo, stock_critico, controla_stock')
+        .select(
+          'id, nombre, stock_actual, stock_minimo, stock_critico, controla_stock',
+        )
         .eq('activo', true)
         .eq('controla_stock', true);
 
     final hayCajaAbierta = cajaAbiertaResponse.isNotEmpty;
     final cajaId = hayCajaAbierta
-        ? (Map<String, dynamic>.from(cajaAbiertaResponse.first as Map))['id'] as int
+        ? (Map<String, dynamic>.from(cajaAbiertaResponse.first as Map))['id']
+              as int
         : null;
 
     double totalVentasHoy = 0;

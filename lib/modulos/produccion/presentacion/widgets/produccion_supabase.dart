@@ -114,9 +114,7 @@ class ProduccionSupabase {
           (item) => Map<String, dynamic>.from(item as Map),
         )
         .where(
-          (item) => productosConReceta.contains(
-            (item['id'] as num).toInt(),
-          ),
+          (item) => productosConReceta.contains((item['id'] as num).toInt()),
         )
         .map<ProductoProduccion>((item) {
           return ProductoProduccion(
@@ -135,67 +133,46 @@ class ProduccionSupabase {
   static Future<List<InsumoRecetaProduccion>> obtenerRecetaProducto(
     int productoId,
   ) async {
-    final recetas = await SupabaseCliente.cliente
-        .from('recetas')
-        .select('id')
-        .eq('producto_id', productoId)
-        .eq('activo', true)
-        .limit(1);
+    final respuesta = await SupabaseCliente.cliente.rpc(
+      'resolver_ingredientes_receta',
+      params: {'p_producto_id': productoId},
+    );
 
-    if (recetas.isEmpty) return [];
+    if (respuesta is! List) {
+      return [];
+    }
 
-    final receta = Map<String, dynamic>.from(recetas.first as Map);
-    final recetaId = (receta['id'] as num).toInt();
+    final resultado = <InsumoRecetaProduccion>[];
 
-    final detallesResponse = await SupabaseCliente.cliente
-        .from('receta_detalle')
-        .select('''
-          ingrediente_id,
-          cantidad,
-          unidad_medida,
-          ingrediente:ingredientes(
-            nombre,
-            categoria,
-            stock_actual,
-            activo
-          )
-        ''')
-        .eq('receta_id', recetaId)
-        .order('id');
+    for (final item in respuesta) {
+      final mapa = Map<String, dynamic>.from(item as Map);
 
-    return detallesResponse
-        .map<Map<String, dynamic>>(
-          (item) => Map<String, dynamic>.from(item as Map),
-        )
-        .where((item) {
-          final ingredienteRaw = item['ingrediente'];
+      resultado.add(
+        InsumoRecetaProduccion(
+          ingredienteId: (mapa['ingrediente_id'] as num).toInt(),
 
-          if (ingredienteRaw == null) return false;
+          ingredienteNombre: (mapa['ingrediente_nombre'] ?? '').toString(),
 
-          final ingrediente = Map<String, dynamic>.from(
-            ingredienteRaw as Map,
-          );
+          ingredienteCategoria: (mapa['ingrediente_categoria'] ?? '')
+              .toString(),
 
-          return ingrediente['activo'] == true;
-        })
-        .map<InsumoRecetaProduccion>((item) {
-          final ingrediente = Map<String, dynamic>.from(
-            item['ingrediente'] as Map,
-          );
+          unidadMedida: (mapa['unidad_medida'] ?? '').toString(),
 
-          return InsumoRecetaProduccion(
-            ingredienteId: (item['ingrediente_id'] as num).toInt(),
-            ingredienteNombre: (ingrediente['nombre'] ?? '').toString(),
-            ingredienteCategoria:
-                (ingrediente['categoria'] ?? '').toString(),
-            unidadMedida: (item['unidad_medida'] ?? '').toString(),
-            cantidadPorUnidad:
-                (item['cantidad'] as num?)?.toDouble() ?? 0,
-            stockActual:
-                (ingrediente['stock_actual'] as num?)?.toDouble() ?? 0,
-          );
-        })
-        .toList();
+          cantidadPorUnidad:
+              (mapa['cantidad_por_unidad'] as num?)?.toDouble() ?? 0,
+
+          stockActual: (mapa['stock_actual'] as num?)?.toDouble() ?? 0,
+        ),
+      );
+    }
+
+    resultado.sort(
+      (a, b) => a.ingredienteNombre.toLowerCase().compareTo(
+        b.ingredienteNombre.toLowerCase(),
+      ),
+    );
+
+    return resultado;
   }
 
   static Future<int> obtenerTotalIngredientesCriticos() async {
@@ -209,11 +186,9 @@ class ProduccionSupabase {
     for (final item in response) {
       final mapa = Map<String, dynamic>.from(item as Map);
 
-      final stockActual =
-          (mapa['stock_actual'] as num?)?.toDouble() ?? 0;
+      final stockActual = (mapa['stock_actual'] as num?)?.toDouble() ?? 0;
 
-      final stockCritico =
-          (mapa['stock_critico'] as num?)?.toDouble() ?? 0;
+      final stockCritico = (mapa['stock_critico'] as num?)?.toDouble() ?? 0;
 
       if (stockActual <= stockCritico) {
         total++;
@@ -274,8 +249,7 @@ class ProduccionSupabase {
           (mapa['cantidad_producida'] as num?)?.toDouble() ?? 0;
 
       final cantidadOriginal =
-          (mapa['cantidad_original'] as num?)?.toDouble() ??
-          cantidadProducida;
+          (mapa['cantidad_original'] as num?)?.toDouble() ?? cantidadProducida;
 
       return ProduccionHistorial(
         id: (mapa['id'] as num).toInt(),
@@ -288,12 +262,10 @@ class ProduccionSupabase {
         observacion: (mapa['observacion'] ?? '').toString(),
         corregida: mapa['corregida'] as bool? ?? false,
         fechaRegistro: _convertirFecha(mapa['created_at']),
-        fechaUltimaCorreccion:
-            mapa['fecha_ultima_correccion'] == null
+        fechaUltimaCorreccion: mapa['fecha_ultima_correccion'] == null
             ? null
             : _convertirFecha(mapa['fecha_ultima_correccion']),
-        usuarioUltimaCorreccion:
-            (usuarioCorreccion['nombre'] ?? '').toString(),
+        usuarioUltimaCorreccion: (usuarioCorreccion['nombre'] ?? '').toString(),
       );
     }).toList();
   }
@@ -313,9 +285,7 @@ class ProduccionSupabase {
     required String observacion,
   }) async {
     if (cantidadProducida <= 0) {
-      throw Exception(
-        'La cantidad producida debe ser mayor a cero.',
-      );
+      throw Exception('La cantidad producida debe ser mayor a cero.');
     }
 
     final resultado = await SupabaseCliente.cliente.rpc(
@@ -324,9 +294,7 @@ class ProduccionSupabase {
         'p_producto_id': producto.id,
         'p_cantidad_producida': cantidadProducida,
         'p_usuario_login': usuarioLogin.trim(),
-        'p_observacion': observacion.trim().isEmpty
-            ? null
-            : observacion.trim(),
+        'p_observacion': observacion.trim().isEmpty ? null : observacion.trim(),
       },
     );
 
@@ -349,15 +317,11 @@ class ProduccionSupabase {
     required String observacionNueva,
   }) async {
     if (cantidadNueva <= 0) {
-      throw Exception(
-        'La nueva cantidad debe ser mayor a cero.',
-      );
+      throw Exception('La nueva cantidad debe ser mayor a cero.');
     }
 
     if (motivo.trim().isEmpty) {
-      throw Exception(
-        'Debes escribir el motivo de la corrección.',
-      );
+      throw Exception('Debes escribir el motivo de la corrección.');
     }
 
     await SupabaseCliente.cliente.rpc(

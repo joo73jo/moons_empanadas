@@ -5,10 +5,7 @@ import 'inventario_supabase.dart';
 class DialogoItemInventario extends StatefulWidget {
   final ItemInventario? item;
 
-  const DialogoItemInventario({
-    super.key,
-    this.item,
-  });
+  const DialogoItemInventario({super.key, this.item});
 
   @override
   State<DialogoItemInventario> createState() => _DialogoItemInventarioState();
@@ -27,10 +24,12 @@ class _DialogoItemInventarioState extends State<DialogoItemInventario> {
   void initState() {
     super.initState();
     _nombreController = TextEditingController(text: widget.item?.nombre ?? '');
-    _categoriaController =
-        TextEditingController(text: widget.item?.categoria ?? '');
-    _unidadController =
-        TextEditingController(text: widget.item?.unidadMedida ?? '');
+    _categoriaController = TextEditingController(
+      text: widget.item?.categoria ?? '',
+    );
+    _unidadController = TextEditingController(
+      text: widget.item?.unidadMedida ?? '',
+    );
     _stockActualController = TextEditingController(
       text: widget.item != null ? widget.item!.stockActual.toString() : '0',
     );
@@ -85,30 +84,34 @@ class _DialogoItemInventarioState extends State<DialogoItemInventario> {
                 _campo(
                   _stockActualController,
                   'Stock actual',
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
                 const SizedBox(height: 12),
               ],
               _campo(
                 _stockMinimoController,
                 'Stock mínimo',
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
               const SizedBox(height: 12),
               _campo(
                 _stockCriticoController,
                 'Stock crítico',
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
               const SizedBox(height: 12),
               _campo(
                 _costoController,
                 'Costo unitario',
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
             ],
           ),
@@ -150,7 +153,9 @@ class _DialogoItemInventarioState extends State<DialogoItemInventario> {
                 nombre: nombre,
                 categoria: categoria,
                 unidadMedida: unidad,
-                stockActual: esNuevo ? stockActual : (widget.item?.stockActual ?? 0),
+                stockActual: esNuevo
+                    ? stockActual
+                    : (widget.item?.stockActual ?? 0),
                 stockMinimo: stockMinimo,
                 stockCritico: stockCritico,
                 costoUnitario: costo,
@@ -183,9 +188,7 @@ class _DialogoItemInventarioState extends State<DialogoItemInventario> {
         labelStyle: const TextStyle(color: ColoresApp.textoSecundario),
         filled: true,
         fillColor: ColoresApp.fondoSecundario,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }

@@ -7,10 +7,7 @@ import '../widgets/recetas_supabase.dart';
 class PaginaRecetas extends StatefulWidget {
   final Usuario usuario;
 
-  const PaginaRecetas({
-    super.key,
-    required this.usuario,
-  });
+  const PaginaRecetas({super.key, required this.usuario});
 
   @override
   State<PaginaRecetas> createState() => _PaginaRecetasState();
@@ -100,21 +97,30 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
       ),
     );
 
-    if (resultado == null) return;
+    if (resultado == null) {
+      return;
+    }
 
     try {
       final detalles = List<RecetaDetalleItem>.from(
         resultado['detalles'] as List,
       );
 
+      final subrecetas = List<RecetaSubrecetaItem>.from(
+        resultado['subrecetas'] as List? ?? const [],
+      );
+
       await RecetasSupabase.guardarReceta(
         productoId: producto.id,
         nombreReceta: resultado['nombreReceta'] as String,
         detalles: detalles,
+        subrecetas: subrecetas,
       );
 
       if (!mounted) return;
+
       _mostrarMensaje('Receta guardada correctamente.');
+
       await _cargar();
     } catch (e) {
       _mostrarMensaje('Error guardando receta: $e');
@@ -131,6 +137,27 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
       return;
     }
 
+    final componentes = <Map<String, String>>[];
+
+    for (final detalle in receta.detalles) {
+      componentes.add({
+        'tipo': 'INGREDIENTE',
+        'nombre': detalle.ingredienteNombre,
+        'categoria': detalle.ingredienteCategoria,
+        'cantidad':
+            '${detalle.cantidad.toStringAsFixed(3)} ${detalle.unidadMedida}',
+      });
+    }
+
+    for (final subreceta in receta.subrecetas) {
+      componentes.add({
+        'tipo': 'RECETA',
+        'nombre': subreceta.productoNombre,
+        'categoria': 'Receta: ${subreceta.recetaNombre}',
+        'cantidad': '${subreceta.cantidad.toStringAsFixed(3)} porciones',
+      });
+    }
+
     await showDialog<void>(
       context: context,
       builder: (_) => Dialog(
@@ -145,9 +172,7 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
           decoration: BoxDecoration(
             color: ColoresApp.superficie,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.06),
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.06)),
           ),
           child: Column(
             children: [
@@ -156,13 +181,10 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
                   Expanded(
                     child: Text(
                       'Receta • ${producto.nombre}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: ColoresApp.textoPrincipal,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
-                        height: 1.1,
                       ),
                     ),
                   ),
@@ -175,34 +197,28 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   receta.nombreReceta,
-                  style: const TextStyle(
-                    color: ColoresApp.textoSecundario,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: ColoresApp.textoSecundario),
                 ),
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: receta.detalles.isEmpty
+                child: componentes.isEmpty
                     ? const Center(
                         child: Text(
-                          'La receta no tiene ingredientes.',
-                          style: TextStyle(
-                            color: ColoresApp.textoSecundario,
-                          ),
+                          'La receta no tiene componentes.',
+                          style: TextStyle(color: ColoresApp.textoSecundario),
                         ),
                       )
                     : ListView.separated(
-                        itemCount: receta.detalles.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 12),
+                        itemCount: componentes.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
-                          final detalle = receta.detalles[index];
+                          final item = componentes[index];
 
                           return Container(
                             padding: const EdgeInsets.all(14),
@@ -210,85 +226,48 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
                               color: ColoresApp.fondoSecundario,
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final compacto = constraints.maxWidth < 430;
-
-                                if (compacto) {
-                                  return Column(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        detalle.ingredienteNombre,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                        item['tipo']!,
+                                        style: const TextStyle(
+                                          color: ColoresApp.principal,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        item['nombre']!,
                                         style: const TextStyle(
                                           color: ColoresApp.textoPrincipal,
                                           fontSize: 16,
                                           fontWeight: FontWeight.w900,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 3),
                                       Text(
-                                        detalle.ingredienteCategoria,
+                                        item['categoria']!,
                                         style: const TextStyle(
                                           color: ColoresApp.textoSecundario,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        '${detalle.cantidad.toStringAsFixed(3)} ${detalle.unidadMedida}',
-                                        style: const TextStyle(
-                                          color: ColoresApp.principal,
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 15,
                                         ),
                                       ),
                                     ],
-                                  );
-                                }
-
-                                return Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            detalle.ingredienteNombre,
-                                            style: const TextStyle(
-                                              color:
-                                                  ColoresApp.textoPrincipal,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            detalle.ingredienteCategoria,
-                                            style: const TextStyle(
-                                              color:
-                                                  ColoresApp.textoSecundario,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      '${detalle.cantidad.toStringAsFixed(3)} ${detalle.unidadMedida}',
-                                      style: const TextStyle(
-                                        color: ColoresApp.principal,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
+                                  ),
+                                ),
+                                Text(
+                                  item['cantidad']!,
+                                  style: const TextStyle(
+                                    color: ColoresApp.principal,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
                             ),
                           );
                         },
@@ -302,61 +281,61 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
   }
 
   Future<void> _eliminarReceta(ProductoReceta producto) async {
-  final confirmar = await showDialog<bool>(
-    context: context,
-    builder: (_) => AlertDialog(
-      backgroundColor: ColoresApp.superficie,
-      title: const Text(
-        'Eliminar receta',
-        style: TextStyle(
-          color: ColoresApp.textoPrincipal,
-          fontWeight: FontWeight.w900,
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: ColoresApp.superficie,
+        title: const Text(
+          'Eliminar receta',
+          style: TextStyle(
+            color: ColoresApp.textoPrincipal,
+            fontWeight: FontWeight.w900,
+          ),
         ),
-      ),
-      content: Text(
-        '¿Seguro que deseas eliminar la receta de "${producto.nombre}"?\n\nEsta acción no se puede deshacer.',
-        style: const TextStyle(
-          color: ColoresApp.textoSecundario,
-          height: 1.35,
+        content: Text(
+          '¿Seguro que deseas eliminar la receta de "${producto.nombre}"?\n\nEsta acción no se puede deshacer.',
+          style: const TextStyle(
+            color: ColoresApp.textoSecundario,
+            height: 1.35,
+          ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text(
-            'Cancelar',
-            style: TextStyle(
-              color: ColoresApp.textoSecundario,
-              fontWeight: FontWeight.w700,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(
+                color: ColoresApp.textoSecundario,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            foregroundColor: Colors.white,
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'Sí, eliminar',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
           ),
-          child: const Text(
-            'Sí, eliminar',
-            style: TextStyle(fontWeight: FontWeight.w900),
-          ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
 
-  if (confirmar != true) return;
+    if (confirmar != true) return;
 
-  try {
-    await RecetasSupabase.eliminarReceta(producto.id);
-    if (!mounted) return;
-    _mostrarMensaje('Receta eliminada.');
-    await _cargar();
-  } catch (e) {
-    _mostrarMensaje('Error eliminando receta: $e');
+    try {
+      await RecetasSupabase.eliminarReceta(producto.id);
+      if (!mounted) return;
+      _mostrarMensaje('Receta eliminada.');
+      await _cargar();
+    } catch (e) {
+      _mostrarMensaje('Error eliminando receta: $e');
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -474,9 +453,7 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -508,9 +485,7 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
             style: const TextStyle(color: ColoresApp.textoPrincipal),
             decoration: InputDecoration(
               hintText: 'Buscar producto...',
-              hintStyle: const TextStyle(
-                color: ColoresApp.textoSecundario,
-              ),
+              hintStyle: const TextStyle(color: ColoresApp.textoSecundario),
               prefixIcon: const Icon(
                 Icons.search_rounded,
                 color: ColoresApp.principal,
@@ -527,9 +502,7 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
             const SizedBox(
               height: 260,
               child: Center(
-                child: CircularProgressIndicator(
-                  color: ColoresApp.principal,
-                ),
+                child: CircularProgressIndicator(color: ColoresApp.principal),
               ),
             )
           else if (productos.isEmpty)
@@ -609,10 +582,7 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
                     ),
                     const SizedBox(width: 14),
                     Expanded(
-                      child: _encabezadoProducto(
-                        producto,
-                        conIcono: false,
-                      ),
+                      child: _encabezadoProducto(producto, conIcono: false),
                     ),
                     const SizedBox(width: 12),
                     _accionesProducto(producto, compacto: false),
@@ -623,10 +593,7 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
     );
   }
 
-  Widget _encabezadoProducto(
-    ProductoReceta producto, {
-    bool conIcono = true,
-  }) {
+  Widget _encabezadoProducto(ProductoReceta producto, {bool conIcono = true}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -636,17 +603,11 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
             height: 54,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  ColoresApp.principalClaro,
-                  ColoresApp.principal,
-                ],
+                colors: [ColoresApp.principalClaro, ColoresApp.principal],
               ),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(
-              Icons.menu_book_rounded,
-              color: Colors.black,
-            ),
+            child: const Icon(Icons.menu_book_rounded, color: Colors.black),
           ),
           const SizedBox(width: 12),
         ],
@@ -681,10 +642,7 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
         ),
         const SizedBox(width: 8),
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 6,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: producto.tieneReceta
                 ? const Color(0x2200A896)
@@ -706,12 +664,8 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
     );
   }
 
-  Widget _accionesProducto(
-    ProductoReceta producto, {
-    required bool compacto,
-  }) {
-    final textoAccion =
-        producto.tieneReceta ? 'Editar receta' : 'Crear receta';
+  Widget _accionesProducto(ProductoReceta producto, {required bool compacto}) {
+    final textoAccion = producto.tieneReceta ? 'Editar receta' : 'Crear receta';
 
     if (compacto) {
       return Column(
@@ -747,18 +701,10 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
           child: _botonPrincipal(producto, textoAccion),
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          width: 150,
-          height: 42,
-          child: _botonVer(producto),
-        ),
+        SizedBox(width: 150, height: 42, child: _botonVer(producto)),
         if (_esDueno && producto.tieneReceta) ...[
           const SizedBox(height: 8),
-          SizedBox(
-            width: 150,
-            height: 42,
-            child: _botonEliminar(producto),
-          ),
+          SizedBox(width: 150, height: 42, child: _botonEliminar(producto)),
         ],
       ],
     );
@@ -770,16 +716,9 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
       style: ElevatedButton.styleFrom(
         backgroundColor: ColoresApp.principal,
         foregroundColor: Colors.black,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
-      child: Text(
-        texto,
-        style: const TextStyle(
-          fontWeight: FontWeight.w900,
-        ),
-      ),
+      child: Text(texto, style: const TextStyle(fontWeight: FontWeight.w900)),
     );
   }
 
@@ -788,18 +727,12 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
       onPressed: () => _verReceta(producto),
       style: OutlinedButton.styleFrom(
         foregroundColor: ColoresApp.textoPrincipal,
-        side: BorderSide(
-          color: Colors.white.withOpacity(0.12),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        side: BorderSide(color: Colors.white.withOpacity(0.12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       child: const Text(
         'Ver receta',
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -809,18 +742,12 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
       onPressed: () => _eliminarReceta(producto),
       style: OutlinedButton.styleFrom(
         foregroundColor: Colors.redAccent,
-        side: BorderSide(
-          color: Colors.redAccent.withOpacity(0.45),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        side: BorderSide(color: Colors.redAccent.withOpacity(0.45)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       child: const Text(
         'Eliminar',
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -831,9 +758,7 @@ class _PaginaRecetasState extends State<PaginaRecetas> {
       decoration: BoxDecoration(
         color: ColoresApp.superficie,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.06),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

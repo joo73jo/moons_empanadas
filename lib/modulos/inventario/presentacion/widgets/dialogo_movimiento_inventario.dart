@@ -17,10 +17,7 @@ class ResultadoMovimientoInventario {
 class DialogoMovimientoInventario extends StatefulWidget {
   final ItemInventario item;
 
-  const DialogoMovimientoInventario({
-    super.key,
-    required this.item,
-  });
+  const DialogoMovimientoInventario({super.key, required this.item});
 
   @override
   State<DialogoMovimientoInventario> createState() =>
@@ -109,13 +106,15 @@ class _DialogoMovimientoInventarioState
               const SizedBox(height: 12),
               TextField(
                 controller: _valorController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 style: const TextStyle(color: ColoresApp.textoPrincipal),
                 decoration: InputDecoration(
                   labelText: _labelValor(),
-                  labelStyle:
-                      const TextStyle(color: ColoresApp.textoSecundario),
+                  labelStyle: const TextStyle(
+                    color: ColoresApp.textoSecundario,
+                  ),
                   filled: true,
                   fillColor: ColoresApp.fondoSecundario,
                   border: OutlineInputBorder(
@@ -129,8 +128,9 @@ class _DialogoMovimientoInventarioState
                 style: const TextStyle(color: ColoresApp.textoPrincipal),
                 decoration: InputDecoration(
                   labelText: 'Motivo',
-                  labelStyle:
-                      const TextStyle(color: ColoresApp.textoSecundario),
+                  labelStyle: const TextStyle(
+                    color: ColoresApp.textoSecundario,
+                  ),
                   filled: true,
                   fillColor: ColoresApp.fondoSecundario,
                   border: OutlineInputBorder(

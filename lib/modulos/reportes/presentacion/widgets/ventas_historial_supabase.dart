@@ -82,7 +82,9 @@ class VentasHistorialSupabase {
       query = query.lte('created_at', _fechaSql(fechaFin));
     }
 
-    final ventasResponse = await query.order('id', ascending: false).limit(limite);
+    final ventasResponse = await query
+        .order('id', ascending: false)
+        .limit(limite);
 
     final List<Map<String, dynamic>> ventas = ventasResponse
         .map<Map<String, dynamic>>(
@@ -178,7 +180,7 @@ class VentasHistorialSupabase {
 
     final ventaResponse = await cliente
         .from('ventas')
-        .select('id, caja_id, estado, total')
+        .select('id, caja_id, caja_liquidacion_id, estado, estado_cobro, total')
         .eq('id', ventaId)
         .single();
 
@@ -188,8 +190,21 @@ class VentasHistorialSupabase {
       throw Exception('Esta venta ya está anulada.');
     }
 
-    final int cajaId = venta['caja_id'] as int;
-    final double totalVenta = (venta['total'] as num).toDouble();
+    final totalVenta = (venta['total'] as num?)?.toDouble() ?? 0;
+
+    final cajaCreacionId = (venta['caja_id'] as num?)?.toInt();
+
+    final cajaLiquidacionId = (venta['caja_liquidacion_id'] as num?)?.toInt();
+
+    /*
+     * Si el dinero entró posteriormente,
+     * usamos la caja donde realmente fue
+     * liquidado.
+     *
+     * Si fue cobro inmediato,
+     * usamos la caja de creación.
+     */
+    final cajaCobroId = cajaLiquidacionId ?? cajaCreacionId;
 
     final pagosResponse = await cliente
         .from('pagos_venta')
@@ -202,61 +217,94 @@ class VentasHistorialSupabase {
         )
         .toList();
 
-    final cajaResponse = await cliente
-        .from('cajas')
-        .select(
-          'total_efectivo, total_transferencia, total_tarjeta, total_ventas',
-        )
-        .eq('id', cajaId)
-        .single();
+    /*
+     * Si nunca fue cobrada,
+     * no existe dinero que sacar
+     * de ninguna caja.
+     */
+    if (pagos.isNotEmpty && cajaCobroId != null) {
+      final cajaResponse = await cliente
+          .from('cajas')
+          .select(
+            'total_efectivo, total_transferencia, total_tarjeta, total_ventas',
+          )
+          .eq('id', cajaCobroId)
+          .single();
 
-    final caja = Map<String, dynamic>.from(cajaResponse);
+      final caja = Map<String, dynamic>.from(cajaResponse);
 
-    double totalEfectivo =
-        (caja['total_efectivo'] as num?)?.toDouble() ?? 0;
-    double totalTransferencia =
-        (caja['total_transferencia'] as num?)?.toDouble() ?? 0;
-    double totalTarjeta = (caja['total_tarjeta'] as num?)?.toDouble() ?? 0;
-    double totalVentas = (caja['total_ventas'] as num?)?.toDouble() ?? 0;
+      double totalEfectivo = (caja['total_efectivo'] as num?)?.toDouble() ?? 0;
 
-    for (final pago in pagos) {
-      final metodo = (pago['metodo_pago'] ?? '').toString();
-      final monto = (pago['monto'] as num).toDouble();
+      double totalTransferencia =
+          (caja['total_transferencia'] as num?)?.toDouble() ?? 0;
 
-      if (metodo == 'efectivo') {
-        totalEfectivo -= monto;
-      } else if (metodo == 'transferencia') {
-        totalTransferencia -= monto;
-      } else if (metodo == 'tarjeta') {
-        totalTarjeta -= monto;
+      double totalTarjeta = (caja['total_tarjeta'] as num?)?.toDouble() ?? 0;
+
+      double totalVentas = (caja['total_ventas'] as num?)?.toDouble() ?? 0;
+
+      for (final pago in pagos) {
+        final metodo = (pago['metodo_pago'] ?? '').toString();
+
+        final monto = (pago['monto'] as num?)?.toDouble() ?? 0;
+
+        switch (metodo) {
+          case 'efectivo':
+            totalEfectivo -= monto;
+            break;
+
+          case 'transferencia':
+            totalTransferencia -= monto;
+            break;
+
+          case 'tarjeta':
+            totalTarjeta -= monto;
+            break;
+        }
       }
+
+      totalVentas -= totalVenta;
+
+      if (totalEfectivo < 0) {
+        totalEfectivo = 0;
+      }
+
+      if (totalTransferencia < 0) {
+        totalTransferencia = 0;
+      }
+
+      if (totalTarjeta < 0) {
+        totalTarjeta = 0;
+      }
+
+      if (totalVentas < 0) {
+        totalVentas = 0;
+      }
+
+      await cliente
+          .from('cajas')
+          .update({
+            'total_efectivo': totalEfectivo,
+            'total_transferencia': totalTransferencia,
+            'total_tarjeta': totalTarjeta,
+            'total_ventas': totalVentas,
+          })
+          .eq('id', cajaCobroId);
     }
 
-    totalVentas -= totalVenta;
-
-    if (totalEfectivo < 0) totalEfectivo = 0;
-    if (totalTransferencia < 0) totalTransferencia = 0;
-    if (totalTarjeta < 0) totalTarjeta = 0;
-    if (totalVentas < 0) totalVentas = 0;
-
-    await cliente.from('cajas').update({
-      'total_efectivo': totalEfectivo,
-      'total_transferencia': totalTransferencia,
-      'total_tarjeta': totalTarjeta,
-      'total_ventas': totalVentas,
-    }).eq('id', cajaId);
-
+    /*
+     * DEVOLVER STOCK
+     */
     final movimientosResponse = await cliente
         .from('movimientos_stock')
         .select('''
           tipo_item,
           item_id,
           cantidad,
-          unidad_medida,
-          stock_nuevo
+          unidad_medida
         ''')
         .eq('referencia_tabla', 'ventas')
-        .eq('referencia_id', ventaId);
+        .eq('referencia_id', ventaId)
+        .neq('tipo_movimiento', 'venta_anulacion');
 
     final movimientos = movimientosResponse
         .map<Map<String, dynamic>>(
@@ -267,10 +315,14 @@ class VentasHistorialSupabase {
     for (final movimiento in movimientos) {
       final tipoItem = (movimiento['tipo_item'] ?? '').toString();
 
-      if (tipoItem != 'producto') continue;
+      if (tipoItem != 'producto') {
+        continue;
+      }
 
-      final itemId = movimiento['item_id'] as int;
+      final itemId = (movimiento['item_id'] as num).toInt();
+
       final cantidad = (movimiento['cantidad'] as num).toDouble();
+
       final unidadMedida = (movimiento['unidad_medida'] ?? 'unidad').toString();
 
       final productoResponse = await cliente
@@ -280,7 +332,9 @@ class VentasHistorialSupabase {
           .single();
 
       final producto = Map<String, dynamic>.from(productoResponse);
+
       final stockAnterior = (producto['stock_actual'] as num).toDouble();
+
       final stockNuevo = stockAnterior + cantidad;
 
       await cliente
@@ -303,12 +357,18 @@ class VentasHistorialSupabase {
       });
     }
 
-    await cliente.from('ventas').update({
-      'estado': 'anulada',
-      'estado_preparacion': 'anulada',
-      'motivo_anulacion': motivo.trim(),
-      'fecha_anulacion': DateTime.now().toIso8601String(),
-    }).eq('id', ventaId);
+    /*
+     * MARCAR VENTA COMO ANULADA
+     */
+    await cliente
+        .from('ventas')
+        .update({
+          'estado': 'anulada',
+          'estado_preparacion': 'anulada',
+          'motivo_anulacion': motivo.trim(),
+          'fecha_anulacion': DateTime.now().toIso8601String(),
+        })
+        .eq('id', ventaId);
   }
 
   static String _fechaSql(DateTime fecha) {

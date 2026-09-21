@@ -110,9 +110,7 @@ class CajaSupabase {
   }) async {
     final respuesta = await SupabaseCliente.cliente
         .from('cajas')
-        .update({
-          'monto_inicial': montoInicial,
-        })
+        .update({'monto_inicial': montoInicial})
         .eq('id', cajaId)
         .eq('estado', 'abierta')
         .select()
@@ -163,8 +161,7 @@ class CajaSupabase {
       id: caja['id'] as int,
       estado: (caja['estado'] ?? '').toString(),
       montoInicial: (caja['monto_inicial'] as num?)?.toDouble() ?? 0,
-      montoFinalContado:
-          (caja['monto_final_contado'] as num?)?.toDouble() ?? 0,
+      montoFinalContado: (caja['monto_final_contado'] as num?)?.toDouble() ?? 0,
       totalEfectivo: (caja['total_efectivo'] as num?)?.toDouble() ?? 0,
       totalTransferencia:
           (caja['total_transferencia'] as num?)?.toDouble() ?? 0,

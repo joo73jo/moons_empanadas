@@ -31,10 +31,7 @@ class _PaginaReportesState extends State<PaginaReportes> {
     _cargar();
   }
 
-  void _aplicarFiltro(
-    FiltroReporteRapido filtro, {
-    bool cargar = true,
-  }) {
+  void _aplicarFiltro(FiltroReporteRapido filtro, {bool cargar = true}) {
     final ahora = DateTime.now();
     final hoy = DateTime(ahora.year, ahora.month, ahora.day);
 
@@ -197,49 +194,47 @@ class _PaginaReportesState extends State<PaginaReportes> {
         color: ColoresApp.fondoPrincipal,
         child: _cargando
             ? const Center(
-                child: CircularProgressIndicator(
-                  color: ColoresApp.principal,
-                ),
+                child: CircularProgressIndicator(color: ColoresApp.principal),
               )
             : reporte == null
-                ? const Center(
-                    child: Text(
-                      'No se pudieron cargar los reportes.',
-                      style: TextStyle(color: ColoresApp.textoSecundario),
-                    ),
-                  )
-                : RefreshIndicator(
-                    color: ColoresApp.principal,
-                    backgroundColor: ColoresApp.superficie,
-                    onRefresh: _cargar,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(20),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1450),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _cabecera(reporte),
-                              const SizedBox(height: 18),
-                              _filtros(),
-                              const SizedBox(height: 18),
-                              _gridKpis(reporte),
-                              const SizedBox(height: 18),
-                              _layoutPrincipal(reporte),
-                              const SizedBox(height: 18),
-                              _layoutSecundario(reporte),
-                              const SizedBox(height: 18),
-                              _bloqueInsights(reporte),
-                              const SizedBox(height: 18),
-                              _layoutOperativo(reporte),
-                            ],
-                          ),
-                        ),
+            ? const Center(
+                child: Text(
+                  'No se pudieron cargar los reportes.',
+                  style: TextStyle(color: ColoresApp.textoSecundario),
+                ),
+              )
+            : RefreshIndicator(
+                color: ColoresApp.principal,
+                backgroundColor: ColoresApp.superficie,
+                onRefresh: _cargar,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(20),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1450),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _cabecera(reporte),
+                          const SizedBox(height: 18),
+                          _filtros(),
+                          const SizedBox(height: 18),
+                          _gridKpis(reporte),
+                          const SizedBox(height: 18),
+                          _layoutPrincipal(reporte),
+                          const SizedBox(height: 18),
+                          _layoutSecundario(reporte),
+                          const SizedBox(height: 18),
+                          _bloqueInsights(reporte),
+                          const SizedBox(height: 18),
+                          _layoutOperativo(reporte),
+                        ],
                       ),
                     ),
                   ),
+                ),
+              ),
       ),
     );
   }
@@ -250,10 +245,7 @@ class _PaginaReportesState extends State<PaginaReportes> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF2A2A2A),
-            Color(0xFF151515),
-          ],
+          colors: [Color(0xFF2A2A2A), Color(0xFF151515)],
         ),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: Colors.white.withOpacity(0.06)),
@@ -265,10 +257,7 @@ class _PaginaReportesState extends State<PaginaReportes> {
             height: 78,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  ColoresApp.principalClaro,
-                  ColoresApp.principal,
-                ],
+                colors: [ColoresApp.principalClaro, ColoresApp.principal],
               ),
               borderRadius: BorderRadius.circular(24),
             ),
@@ -311,11 +300,11 @@ class _PaginaReportesState extends State<PaginaReportes> {
   Widget _badgeEstado(ReporteEjecutivoData reporte) {
     final variacion = reporte.totalAnterior == 0
         ? reporte.totalVendido > 0
-            ? 100.0
-            : 0.0
+              ? 100.0
+              : 0.0
         : ((reporte.totalVendido - reporte.totalAnterior) /
-                reporte.totalAnterior) *
-            100;
+                  reporte.totalAnterior) *
+              100;
 
     final positivo = variacion >= 0;
 
@@ -333,9 +322,7 @@ class _PaginaReportesState extends State<PaginaReportes> {
       child: Row(
         children: [
           Icon(
-            positivo
-                ? Icons.trending_up_rounded
-                : Icons.trending_down_rounded,
+            positivo ? Icons.trending_up_rounded : Icons.trending_down_rounded,
             color: positivo ? ColoresApp.exito : ColoresApp.error,
           ),
           const SizedBox(width: 8),
@@ -393,7 +380,9 @@ class _PaginaReportesState extends State<PaginaReportes> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: seleccionado ? ColoresApp.principal : ColoresApp.fondoSecundario,
+          color: seleccionado
+              ? ColoresApp.principal
+              : ColoresApp.fondoSecundario,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
@@ -511,7 +500,10 @@ class _PaginaReportesState extends State<PaginaReportes> {
               if (kpi.mostrarVariacion) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: positivo
                         ? ColoresApp.exito.withOpacity(0.12)

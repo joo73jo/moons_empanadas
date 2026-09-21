@@ -19,36 +19,28 @@ class DialogoComboSabores extends StatefulWidget {
   });
 
   @override
-  State<DialogoComboSabores> createState() =>
-      _DialogoComboSaboresState();
+  State<DialogoComboSabores> createState() => _DialogoComboSaboresState();
 }
 
-class _DialogoComboSaboresState
-    extends State<DialogoComboSabores> {
-  final Map<int, OpcionComponenteCombo>
-      _opcionesSeleccionadas = {};
+class _DialogoComboSaboresState extends State<DialogoComboSabores> {
+  final Map<int, OpcionComponenteCombo> _opcionesSeleccionadas = {};
 
   List<ComponenteCombo> get _componentes {
     final lista = widget.combo.componentesCombo
         .where((componente) => componente.activo)
         .toList();
 
-    lista.sort(
-      (a, b) {
-        final comparacionOrden =
-            a.orden.compareTo(b.orden);
+    lista.sort((a, b) {
+      final comparacionOrden = a.orden.compareTo(b.orden);
 
-        if (comparacionOrden != 0) {
-          return comparacionOrden;
-        }
+      if (comparacionOrden != 0) {
+        return comparacionOrden;
+      }
 
-        return a.nombreComponente
-            .toLowerCase()
-            .compareTo(
-              b.nombreComponente.toLowerCase(),
-            );
-      },
-    );
+      return a.nombreComponente.toLowerCase().compareTo(
+        b.nombreComponente.toLowerCase(),
+      );
+    });
 
     return lista;
   }
@@ -59,7 +51,7 @@ class _DialogoComboSaboresState
     for (final componente in _componentes) {
       final opcion =
           _opcionesSeleccionadas[componente.id] ??
-              componente.opcionPredeterminada;
+          componente.opcionPredeterminada;
 
       total += opcion.recargo * componente.cantidad;
     }
@@ -77,9 +69,7 @@ class _DialogoComboSaboresState
     }
 
     for (final componente in _componentes) {
-      if (!_opcionesSeleccionadas.containsKey(
-        componente.id,
-      )) {
+      if (!_opcionesSeleccionadas.containsKey(componente.id)) {
         return false;
       }
     }
@@ -92,8 +82,7 @@ class _DialogoComboSaboresState
     super.initState();
 
     for (final componente in _componentes) {
-      _opcionesSeleccionadas[componente.id] =
-          componente.opcionPredeterminada;
+      _opcionesSeleccionadas[componente.id] = componente.opcionPredeterminada;
     }
   }
 
@@ -102,42 +91,34 @@ class _DialogoComboSaboresState
     OpcionComponenteCombo opcion,
   ) {
     setState(() {
-      _opcionesSeleccionadas[componente.id] =
-          opcion;
+      _opcionesSeleccionadas[componente.id] = opcion;
     });
   }
 
   void _confirmar() {
     if (!_configuracionCompleta) {
-      _mostrarMensaje(
-        'Debes completar todos los componentes del combo.',
-      );
+      _mostrarMensaje('Debes completar todos los componentes del combo.');
 
       return;
     }
 
-    final elecciones =
-        <EleccionComponenteCombo>[];
+    final elecciones = <EleccionComponenteCombo>[];
 
     for (final componente in _componentes) {
-      final opcion =
-          _opcionesSeleccionadas[componente.id];
+      final opcion = _opcionesSeleccionadas[componente.id];
 
       if (opcion == null) {
         continue;
       }
 
       final fueSustituido =
-          opcion.producto.id !=
-              componente.productoPredeterminado.id;
+          opcion.producto.id != componente.productoPredeterminado.id;
 
       elecciones.add(
         EleccionComponenteCombo(
           componenteId: componente.id,
-          nombreComponente:
-              componente.nombreComponente,
-          productoPredeterminadoId:
-              componente.productoPredeterminado.id,
+          nombreComponente: componente.nombreComponente,
+          productoPredeterminadoId: componente.productoPredeterminado.id,
           productoElegido: opcion.producto,
           cantidad: componente.cantidad,
           recargoUnitario: opcion.recargo,
@@ -146,17 +127,11 @@ class _DialogoComboSaboresState
       );
     }
 
-    Navigator.pop(
-      context,
-      ResultadoSeleccionCombo(
-        elecciones: elecciones,
-      ),
-    );
+    Navigator.pop(context, ResultadoSeleccionCombo(elecciones: elecciones));
   }
 
   void _mostrarMensaje(String mensaje) {
-    ScaffoldMessenger.of(context)
-        .hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -175,19 +150,15 @@ class _DialogoComboSaboresState
 
   @override
   Widget build(BuildContext context) {
-    final anchoPantalla =
-        MediaQuery.of(context).size.width;
+    final anchoPantalla = MediaQuery.of(context).size.width;
 
-    final altoPantalla =
-        MediaQuery.of(context).size.height;
+    final altoPantalla = MediaQuery.of(context).size.height;
 
     final esCelular = anchoPantalla < 760;
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: EdgeInsets.all(
-        esCelular ? 12 : 24,
-      ),
+      insetPadding: EdgeInsets.all(esCelular ? 12 : 24),
       child: Container(
         width: 820,
         constraints: BoxConstraints(
@@ -196,11 +167,8 @@ class _DialogoComboSaboresState
         ),
         decoration: BoxDecoration(
           color: ColoresApp.superficie,
-          borderRadius:
-              BorderRadius.circular(24),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.07),
-          ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withOpacity(0.07)),
         ),
         child: Column(
           children: [
@@ -209,37 +177,27 @@ class _DialogoComboSaboresState
               child: _componentes.isEmpty
                   ? _mensajeSinConfiguracion()
                   : SingleChildScrollView(
-                      padding: EdgeInsets.all(
-                        esCelular ? 14 : 20,
-                      ),
+                      padding: EdgeInsets.all(esCelular ? 14 : 20),
                       child: Column(
                         children: [
                           _resumenPrecio(),
                           const SizedBox(height: 16),
-                          ...List.generate(
-                            _componentes.length,
-                            (index) {
-                              final componente =
-                                  _componentes[index];
+                          ...List.generate(_componentes.length, (index) {
+                            final componente = _componentes[index];
 
-                              return Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: index ==
-                                          _componentes
-                                                  .length -
-                                              1
-                                      ? 0
-                                      : 14,
-                                ),
-                                child:
-                                    _tarjetaComponente(
-                                  componente,
-                                  index,
-                                  esCelular,
-                                ),
-                              );
-                            },
-                          ),
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom: index == _componentes.length - 1
+                                    ? 0
+                                    : 14,
+                              ),
+                              child: _tarjetaComponente(
+                                componente,
+                                index,
+                                esCelular,
+                              ),
+                            );
+                          }),
                         ],
                       ),
                     ),
@@ -254,22 +212,12 @@ class _DialogoComboSaboresState
   Widget _encabezado() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        17,
-        12,
-        17,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 17, 12, 17),
       decoration: BoxDecoration(
         color: ColoresApp.fondoSecundario,
-        borderRadius:
-            const BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(
-          bottom: BorderSide(
-            color: Colors.white.withOpacity(0.06),
-          ),
+          bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
         ),
       ),
       child: Row(
@@ -278,10 +226,8 @@ class _DialogoComboSaboresState
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: ColoresApp.principal
-                  .withOpacity(0.15),
-              borderRadius:
-                  BorderRadius.circular(14),
+              color: ColoresApp.principal.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
               Icons.local_offer_rounded,
@@ -291,17 +237,14 @@ class _DialogoComboSaboresState
           const SizedBox(width: 13),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   widget.combo.nombre,
                   maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color:
-                        ColoresApp.textoPrincipal,
+                    color: ColoresApp.textoPrincipal,
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                   ),
@@ -310,8 +253,7 @@ class _DialogoComboSaboresState
                 const Text(
                   'Revisa los productos incluidos y realiza sustituciones',
                   style: TextStyle(
-                    color:
-                        ColoresApp.textoSecundario,
+                    color: ColoresApp.textoSecundario,
                     fontSize: 13,
                   ),
                 ),
@@ -338,19 +280,12 @@ class _DialogoComboSaboresState
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: ColoresApp.fondoSecundario,
-        borderRadius:
-            BorderRadius.circular(18),
-        border: Border.all(
-          color: ColoresApp.principal
-              .withOpacity(0.16),
-        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: ColoresApp.principal.withOpacity(0.16)),
       ),
       child: Column(
         children: [
-          _filaPrecio(
-            titulo: 'Precio del combo',
-            valor: widget.combo.precio,
-          ),
+          _filaPrecio(titulo: 'Precio del combo', valor: widget.combo.precio),
           if (_recargoTotal > 0) ...[
             const SizedBox(height: 9),
             _filaPrecio(
@@ -360,13 +295,8 @@ class _DialogoComboSaboresState
             ),
           ],
           const Padding(
-            padding: EdgeInsets.symmetric(
-              vertical: 10,
-            ),
-            child: Divider(
-              color: Color(0x22FFFFFF),
-              height: 1,
-            ),
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Divider(color: Color(0x22FFFFFF), height: 1),
           ),
           _filaPrecio(
             titulo: 'Precio final',
@@ -394,19 +324,16 @@ class _DialogoComboSaboresState
                   ? ColoresApp.textoPrincipal
                   : ColoresApp.textoSecundario,
               fontSize: resaltar ? 17 : 14,
-              fontWeight: resaltar
-                  ? FontWeight.w900
-                  : FontWeight.w700,
+              fontWeight: resaltar ? FontWeight.w900 : FontWeight.w700,
             ),
           ),
         ),
         Text(
           '\$${valor.toStringAsFixed(2)}',
           style: TextStyle(
-            color: color ??
-                (resaltar
-                    ? ColoresApp.principal
-                    : ColoresApp.textoPrincipal),
+            color:
+                color ??
+                (resaltar ? ColoresApp.principal : ColoresApp.textoPrincipal),
             fontSize: resaltar ? 23 : 16,
             fontWeight: FontWeight.w900,
           ),
@@ -420,34 +347,29 @@ class _DialogoComboSaboresState
     int index,
     bool esCelular,
   ) {
-    final opciones =
-        componente.todasLasOpciones;
+    final opciones = componente.todasLasOpciones;
 
     final seleccion =
         _opcionesSeleccionadas[componente.id] ??
-            componente.opcionPredeterminada;
+        componente.opcionPredeterminada;
 
     final esSustitucion =
-        seleccion.producto.id !=
-            componente.productoPredeterminado.id;
+        seleccion.producto.id != componente.productoPredeterminado.id;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: ColoresApp.fondoSecundario,
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: esSustitucion
-              ? const Color(0xFFFFA726)
-                  .withOpacity(0.35)
+              ? const Color(0xFFFFA726).withOpacity(0.35)
               : Colors.white.withOpacity(0.07),
         ),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -456,10 +378,8 @@ class _DialogoComboSaboresState
                 height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: ColoresApp.principal
-                      .withOpacity(0.14),
-                  borderRadius:
-                      BorderRadius.circular(12),
+                  color: ColoresApp.principal.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${index + 1}',
@@ -472,17 +392,14 @@ class _DialogoComboSaboresState
               const SizedBox(width: 11),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       componente.nombreComponente,
                       style: const TextStyle(
-                        color:
-                            ColoresApp.textoPrincipal,
+                        color: ColoresApp.textoPrincipal,
                         fontSize: 17,
-                        fontWeight:
-                            FontWeight.w900,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -491,8 +408,7 @@ class _DialogoComboSaboresState
                           ? 'Incluye ${componente.cantidad} unidades'
                           : 'Incluye 1 unidad',
                       style: const TextStyle(
-                        color:
-                            ColoresApp.textoSecundario,
+                        color: ColoresApp.textoSecundario,
                         fontSize: 12,
                       ),
                     ),
@@ -501,16 +417,13 @@ class _DialogoComboSaboresState
               ),
               if (esSustitucion)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: 9,
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFA726)
-                        .withOpacity(0.16),
-                    borderRadius:
-                        BorderRadius.circular(20),
+                    color: const Color(0xFFFFA726).withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
                     'Sustituido',
@@ -524,132 +437,93 @@ class _DialogoComboSaboresState
             ],
           ),
           const SizedBox(height: 14),
-          DropdownButtonFormField<
-              OpcionComponenteCombo>(
-            value: _buscarOpcionSeleccionada(
-              opciones,
-              seleccion,
-            ),
+          DropdownButtonFormField<OpcionComponenteCombo>(
+            value: _buscarOpcionSeleccionada(opciones, seleccion),
             isExpanded: true,
             dropdownColor: ColoresApp.superficie,
-            style: const TextStyle(
-              color: ColoresApp.textoPrincipal,
-            ),
+            style: const TextStyle(color: ColoresApp.textoPrincipal),
             decoration: InputDecoration(
-              labelText: componente
-                      .permiteSustitucion
+              labelText: componente.permiteSustitucion
                   ? 'Producto elegido'
                   : 'Producto incluido',
-              labelStyle: const TextStyle(
-                color:
-                    ColoresApp.textoSecundario,
-              ),
+              labelStyle: const TextStyle(color: ColoresApp.textoSecundario),
               filled: true,
-              fillColor: Colors.black
-                  .withOpacity(0.22),
+              fillColor: Colors.black.withOpacity(0.22),
               border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(14),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color:
-                      Colors.white.withOpacity(0.07),
-                ),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.white.withOpacity(0.07)),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(14),
-                borderSide: const BorderSide(
-                  color: ColoresApp.principal,
-                ),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: ColoresApp.principal),
               ),
             ),
-            items: opciones.map(
-              (opcion) {
-                final esPredeterminada =
-                    opcion.producto.id ==
-                        componente
-                            .productoPredeterminado.id;
+            items: opciones.map((opcion) {
+              final esPredeterminada =
+                  opcion.producto.id == componente.productoPredeterminado.id;
 
-                final recargoTexto =
-                    opcion.recargo > 0
-                        ? '  +\$${opcion.recargo.toStringAsFixed(2)}'
-                        : '';
+              final recargoTexto = opcion.recargo > 0
+                  ? '  +\$${opcion.recargo.toStringAsFixed(2)}'
+                  : '';
 
-                return DropdownMenuItem(
-                  value: opcion,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          opcion.producto.nombre,
-                          maxLines: 1,
-                          overflow:
-                              TextOverflow.ellipsis,
-                        ),
+              return DropdownMenuItem(
+                value: opcion,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        opcion.producto.nombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        esPredeterminada
-                            ? 'Incluido'
-                            : recargoTexto.isEmpty
-                                ? 'Sin recargo'
-                                : recargoTexto,
-                        style: TextStyle(
-                          color: esPredeterminada
-                              ? ColoresApp.principal
-                              : opcion.recargo > 0
-                                  ? const Color(
-                                      0xFFFFA726,
-                                    )
-                                  : ColoresApp
-                                      .textoSecundario,
-                          fontSize: 12,
-                          fontWeight:
-                              FontWeight.w800,
-                        ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      esPredeterminada
+                          ? 'Incluido'
+                          : recargoTexto.isEmpty
+                          ? 'Sin recargo'
+                          : recargoTexto,
+                      style: TextStyle(
+                        color: esPredeterminada
+                            ? ColoresApp.principal
+                            : opcion.recargo > 0
+                            ? const Color(0xFFFFA726)
+                            : ColoresApp.textoSecundario,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
                       ),
-                    ],
-                  ),
-                );
-              },
-            ).toList(),
-            onChanged:
-                componente.permiteSustitucion
-                    ? (opcion) {
-                        if (opcion == null) {
-                          return;
-                        }
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: componente.permiteSustitucion
+                ? (opcion) {
+                    if (opcion == null) {
+                      return;
+                    }
 
-                        _seleccionarOpcion(
-                          componente,
-                          opcion,
-                        );
-                      }
-                    : null,
+                    _seleccionarOpcion(componente, opcion);
+                  }
+                : null,
           ),
           const SizedBox(height: 11),
-          _detalleSeleccion(
-            componente,
-            seleccion,
-            esCelular,
-          ),
+          _detalleSeleccion(componente, seleccion, esCelular),
         ],
       ),
     );
   }
 
-  OpcionComponenteCombo?
-      _buscarOpcionSeleccionada(
+  OpcionComponenteCombo? _buscarOpcionSeleccionada(
     List<OpcionComponenteCombo> opciones,
     OpcionComponenteCombo seleccion,
   ) {
     for (final opcion in opciones) {
-      if (opcion.producto.id ==
-          seleccion.producto.id) {
+      if (opcion.producto.id == seleccion.producto.id) {
         return opcion;
       }
     }
@@ -666,15 +540,12 @@ class _DialogoComboSaboresState
     OpcionComponenteCombo seleccion,
     bool esCelular,
   ) {
-    final cantidadTotal =
-        componente.cantidad;
+    final cantidadTotal = componente.cantidad;
 
-    final recargoTotal =
-        seleccion.recargo * cantidadTotal;
+    final recargoTotal = seleccion.recargo * cantidadTotal;
 
     final esPredeterminado =
-        seleccion.producto.id ==
-            componente.productoPredeterminado.id;
+        seleccion.producto.id == componente.productoPredeterminado.id;
 
     final contenido = [
       _datoSeleccion(
@@ -702,12 +573,10 @@ class _DialogoComboSaboresState
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.20),
-        borderRadius:
-            BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             esPredeterminado
@@ -727,10 +596,7 @@ class _DialogoComboSaboresState
               children: contenido
                   .map(
                     (widget) => Padding(
-                      padding:
-                          const EdgeInsets.only(
-                        bottom: 8,
-                      ),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: widget,
                     ),
                   )
@@ -743,10 +609,7 @@ class _DialogoComboSaboresState
                 (index) => Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(
-                      right: index ==
-                              contenido.length - 1
-                          ? 0
-                          : 12,
+                      right: index == contenido.length - 1 ? 0 : 12,
                     ),
                     child: contenido[index],
                   ),
@@ -769,34 +632,28 @@ class _DialogoComboSaboresState
         Icon(
           icono,
           size: 18,
-          color: resaltar
-              ? const Color(0xFFFFA726)
-              : ColoresApp.principal,
+          color: resaltar ? const Color(0xFFFFA726) : ColoresApp.principal,
         ),
         const SizedBox(width: 7),
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 titulo,
                 style: const TextStyle(
-                  color:
-                      ColoresApp.textoSecundario,
+                  color: ColoresApp.textoSecundario,
                   fontSize: 10,
                 ),
               ),
               Text(
                 valor,
                 maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: resaltar
                       ? const Color(0xFFFFA726)
-                      : ColoresApp
-                          .textoPrincipal,
+                      : ColoresApp.textoPrincipal,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -817,12 +674,8 @@ class _DialogoComboSaboresState
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: ColoresApp.fondoSecundario,
-            borderRadius:
-                BorderRadius.circular(18),
-            border: Border.all(
-              color:
-                  Colors.redAccent.withOpacity(0.25),
-            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.redAccent.withOpacity(0.25)),
           ),
           child: const Column(
             mainAxisSize: MainAxisSize.min,
@@ -837,8 +690,7 @@ class _DialogoComboSaboresState
                 'Este combo no tiene componentes configurados.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color:
-                      ColoresApp.textoPrincipal,
+                  color: ColoresApp.textoPrincipal,
                   fontSize: 17,
                   fontWeight: FontWeight.w900,
                 ),
@@ -847,10 +699,7 @@ class _DialogoComboSaboresState
               Text(
                 'Edita el producto y agrega los productos que incluye.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color:
-                      ColoresApp.textoSecundario,
-                ),
+                style: TextStyle(color: ColoresApp.textoSecundario),
               ),
             ],
           ),
@@ -865,15 +714,8 @@ class _DialogoComboSaboresState
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: ColoresApp.fondoSecundario,
-        borderRadius:
-            const BorderRadius.vertical(
-          bottom: Radius.circular(24),
-        ),
-        border: Border(
-          top: BorderSide(
-            color: Colors.white.withOpacity(0.06),
-          ),
-        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.06))),
       ),
       child: Row(
         children: [
@@ -883,47 +725,28 @@ class _DialogoComboSaboresState
                 Navigator.pop(context);
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor:
-                    ColoresApp.textoPrincipal,
-                side: BorderSide(
-                  color:
-                      Colors.white.withOpacity(0.13),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(
-                  vertical: 14,
-                ),
+                foregroundColor: ColoresApp.textoPrincipal,
+                side: BorderSide(color: Colors.white.withOpacity(0.13)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text(
-                'Cancelar',
-              ),
+              child: const Text('Cancelar'),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: _configuracionCompleta
-                  ? _confirmar
-                  : null,
-              icon: const Icon(
-                Icons.add_shopping_cart_rounded,
-              ),
+              onPressed: _configuracionCompleta ? _confirmar : null,
+              icon: const Icon(Icons.add_shopping_cart_rounded),
               label: Text(
                 _recargoTotal > 0
                     ? 'Agregar por \$${_precioFinal.toStringAsFixed(2)}'
                     : 'Agregar combo',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    ColoresApp.principal,
+                backgroundColor: ColoresApp.principal,
                 foregroundColor: Colors.black,
-                padding:
-                    const EdgeInsets.symmetric(
-                  vertical: 14,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
           ),

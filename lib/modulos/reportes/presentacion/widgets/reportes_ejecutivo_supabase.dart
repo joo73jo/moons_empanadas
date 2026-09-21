@@ -98,6 +98,22 @@ class BarrioReporte {
   });
 }
 
+class PlataformaReporte {
+  final String nombre;
+  final int pedidos;
+  final double bruto;
+  final double comision;
+  final double neto;
+
+  const PlataformaReporte({
+    required this.nombre,
+    required this.pedidos,
+    required this.bruto,
+    required this.comision,
+    required this.neto,
+  });
+}
+
 class VendedorReporte {
   final String nombre;
   final String usuario;
@@ -233,41 +249,20 @@ class ReportesEjecutivoSupabase {
     final ahora = DateTime.now();
 
     final inicio = fechaInicio == null
-        ? DateTime(
-            ahora.year,
-            ahora.month,
-            ahora.day,
-          )
-        : DateTime(
-            fechaInicio.year,
-            fechaInicio.month,
-            fechaInicio.day,
-          );
+        ? DateTime(ahora.year, ahora.month, ahora.day)
+        : DateTime(fechaInicio.year, fechaInicio.month, fechaInicio.day);
 
     final finBase = fechaFin == null
-        ? DateTime(
-            ahora.year,
-            ahora.month,
-            ahora.day,
-          )
-        : DateTime(
-            fechaFin.year,
-            fechaFin.month,
-            fechaFin.day,
-          );
+        ? DateTime(ahora.year, ahora.month, ahora.day)
+        : DateTime(fechaFin.year, fechaFin.month, fechaFin.day);
 
-    final finExclusivo = finBase.add(
-      const Duration(days: 1),
-    );
+    final finExclusivo = finBase.add(const Duration(days: 1));
 
-    final diasRango =
-        finExclusivo.difference(inicio).inDays <= 0
-            ? 1
-            : finExclusivo.difference(inicio).inDays;
+    final diasRango = finExclusivo.difference(inicio).inDays <= 0
+        ? 1
+        : finExclusivo.difference(inicio).inDays;
 
-    final inicioAnterior = inicio.subtract(
-      Duration(days: diasRango),
-    );
+    final inicioAnterior = inicio.subtract(Duration(days: diasRango));
 
     final finAnterior = inicio;
 
@@ -276,72 +271,44 @@ class ReportesEjecutivoSupabase {
         .select('''
           id,
           created_at,
+          fecha_contable,
+          fecha_programada,
+          es_programado,
           metodo_pago,
           tipo_pedido,
           barrio,
           subtotal,
           total,
+          valor_domicilio,
+          plataforma,
+          porcentaje_plataforma,
+          descuento_plataforma,
           estado,
           usuario:usuarios!ventas_usuario_id_fkey(
             nombre,
             usuario
           )
         ''')
-        .gte(
-          'created_at',
-          _fechaSql(inicio),
-        )
-        .lt(
-          'created_at',
-          _fechaSql(finExclusivo),
-        )
-        .eq(
-          'estado',
-          'pagada',
-        )
-        .order(
-          'created_at',
-          ascending: true,
-        );
-
+        .gte('fecha_contable', _fechaDia(inicio))
+        .lt('fecha_contable', _fechaDia(finExclusivo))
+        .eq('estado', 'pagada')
+        .order('fecha_contable', ascending: true);
     final ventasAnteriorResponse = await cliente
         .from('ventas')
-        .select(
-          'id, created_at, total, estado',
-        )
-        .gte(
-          'created_at',
-          _fechaSql(inicioAnterior),
-        )
-        .lt(
-          'created_at',
-          _fechaSql(finAnterior),
-        )
-        .eq(
-          'estado',
-          'pagada',
-        );
+        .select('id, fecha_contable, total, descuento_plataforma, estado')
+        .gte('fecha_contable', _fechaDia(inicioAnterior))
+        .lt('fecha_contable', _fechaDia(finAnterior))
+        .eq('estado', 'pagada');
+    final ventas = _normalizarLista(ventasResponse);
 
-    final ventas =
-        _normalizarLista(ventasResponse);
-
-    final ventasAnterior =
-        _normalizarLista(
-      ventasAnteriorResponse,
-    );
+    final ventasAnterior = _normalizarLista(ventasAnteriorResponse);
 
     final idsVentas = ventas
-        .map<int>(
-          (venta) =>
-              (venta['id'] as num).toInt(),
-        )
+        .map<int>((venta) => (venta['id'] as num).toInt())
         .toList();
 
     final idsVentasAnterior = ventasAnterior
-        .map<int>(
-          (venta) =>
-              (venta['id'] as num).toInt(),
-        )
+        .map<int>((venta) => (venta['id'] as num).toInt())
         .toList();
 
     final detalles = idsVentas.isEmpty
@@ -360,50 +327,30 @@ class ReportesEjecutivoSupabase {
                   subtotal,
                   sabores
                 ''')
-                .inFilter(
-                  'venta_id',
-                  idsVentas,
-                ),
+                .inFilter('venta_id', idsVentas),
           );
 
-    final detallesAnterior =
-        idsVentasAnterior.isEmpty
-            ? <Map<String, dynamic>>[]
-            : _normalizarLista(
-                await cliente
-                    .from('detalle_venta')
-                    .select(
-                      'id, venta_id, created_at, cantidad, subtotal',
-                    )
-                    .inFilter(
-                      'venta_id',
-                      idsVentasAnterior,
-                    ),
-              );
+    final detallesAnterior = idsVentasAnterior.isEmpty
+        ? <Map<String, dynamic>>[]
+        : _normalizarLista(
+            await cliente
+                .from('detalle_venta')
+                .select('id, venta_id, created_at, cantidad, subtotal')
+                .inFilter('venta_id', idsVentasAnterior),
+          );
 
     final ingredientesResponse = await cliente
         .from('ingredientes')
-        .select(
-          'nombre, stock_actual, stock_minimo, stock_critico',
-        )
-        .eq(
-          'activo',
-          true,
-        );
+        .select('nombre, stock_actual, stock_minimo, stock_critico')
+        .eq('activo', true);
 
     final productosResponse = await cliente
         .from('productos')
         .select(
           'nombre, stock_actual, stock_minimo, stock_critico, controla_stock',
         )
-        .eq(
-          'activo',
-          true,
-        )
-        .eq(
-          'controla_stock',
-          true,
-        );
+        .eq('activo', true)
+        .eq('controla_stock', true);
 
     final produccionesResponse = await cliente
         .from('producciones')
@@ -415,148 +362,83 @@ class ReportesEjecutivoSupabase {
             nombre
           )
         ''')
-        .order(
-          'created_at',
-          ascending: false,
-        )
+        .order('created_at', ascending: false)
         .limit(10);
 
-    final totalVendido =
-        _sumarCampo(
-      ventas,
-      'total',
-    );
+    final totalVendido = _sumarCampo(ventas, 'total');
 
-    final totalAnterior =
-        _sumarCampo(
-      ventasAnterior,
-      'total',
-    );
+    final totalAnterior = _sumarCampo(ventasAnterior, 'total');
 
     final cantidadVentas = ventas.length;
 
-    final cantidadVentasAnterior =
-        ventasAnterior.length;
+    final cantidadVentasAnterior = ventasAnterior.length;
 
-    final productosVendidos =
-        _sumarCantidad(detalles);
+    final productosVendidos = _sumarCantidad(detalles);
 
-    final productosVendidosAnterior =
-        _sumarCantidad(
-      detallesAnterior,
-    );
+    final productosVendidosAnterior = _sumarCantidad(detallesAnterior);
 
-    final ticketPromedio =
-        cantidadVentas == 0
-            ? 0.0
-            : totalVendido /
-                cantidadVentas;
+    final ticketPromedio = cantidadVentas == 0
+        ? 0.0
+        : totalVendido / cantidadVentas;
 
-    final ticketPromedioAnterior =
-        cantidadVentasAnterior == 0
-            ? 0.0
-            : totalAnterior /
-                cantidadVentasAnterior;
+    final ticketPromedioAnterior = cantidadVentasAnterior == 0
+        ? 0.0
+        : totalAnterior / cantidadVentasAnterior;
 
-    final ventasPorDia =
-        _construirVentasPorDia(
+    final ventasPorDia = _construirVentasPorDia(
       ventas: ventas,
       inicio: inicio,
       dias: diasRango,
     );
 
-    final ventasPorHora =
-        _construirVentasPorHora(
-      ventas,
+    final ventasPorHora = _construirVentasPorHora(ventas);
+
+    final metodosPago = _construirMetodosPago(ventas, totalVendido);
+
+    final topCantidad = _construirTopProductos(detalles, porCantidad: true);
+
+    final topIngresos = _construirTopProductos(detalles, porCantidad: false);
+
+    final categorias = _construirCategorias(detalles);
+
+    final barrios = _construirBarrios(ventas);
+
+    final vendedores = _construirVendedores(ventas);
+
+    final alertas = _construirAlertas(
+      ingredientesResponse: ingredientesResponse,
+      productosResponse: productosResponse,
     );
 
-    final metodosPago =
-        _construirMetodosPago(
-      ventas,
-      totalVendido,
-    );
+    final producciones = _construirProducciones(produccionesResponse);
 
-    final topCantidad =
-        _construirTopProductos(
-      detalles,
-      porCantidad: true,
-    );
+    final mejorProducto = topCantidad.isEmpty
+        ? 'Sin datos'
+        : topCantidad.first.nombre;
 
-    final topIngresos =
-        _construirTopProductos(
-      detalles,
-      porCantidad: false,
-    );
+    final mejorVendedor = vendedores.isEmpty
+        ? 'Sin datos'
+        : vendedores.first.nombre;
 
-    final categorias =
-        _construirCategorias(
-      detalles,
-    );
+    final mejorBarrio = barrios.isEmpty ? 'Sin datos' : barrios.first.barrio;
 
-    final barrios =
-        _construirBarrios(
-      ventas,
-    );
-
-    final vendedores =
-        _construirVendedores(
-      ventas,
-    );
-
-    final alertas =
-        _construirAlertas(
-      ingredientesResponse:
-          ingredientesResponse,
-      productosResponse:
-          productosResponse,
-    );
-
-    final producciones =
-        _construirProducciones(
-      produccionesResponse,
-    );
-
-    final mejorProducto =
-        topCantidad.isEmpty
-            ? 'Sin datos'
-            : topCantidad.first.nombre;
-
-    final mejorVendedor =
-        vendedores.isEmpty
-            ? 'Sin datos'
-            : vendedores.first.nombre;
-
-    final mejorBarrio =
-        barrios.isEmpty
-            ? 'Sin datos'
-            : barrios.first.barrio;
-
-    final horaFuerte =
-        ventasPorHora.isEmpty
-            ? 'Sin datos'
-            : ventasPorHora.first.hora;
+    final horaFuerte = ventasPorHora.isEmpty
+        ? 'Sin datos'
+        : ventasPorHora.first.hora;
 
     final kpis = <KpiReporte>[
       KpiReporte(
         titulo: 'Total vendido',
-        valor:
-            '\$${totalVendido.toStringAsFixed(2)}',
-        subtitulo:
-            'Ingresos del período seleccionado',
-        variacionPorcentual:
-            _variacion(
-          totalVendido,
-          totalAnterior,
-        ),
+        valor: '\$${totalVendido.toStringAsFixed(2)}',
+        subtitulo: 'Ingresos del período seleccionado',
+        variacionPorcentual: _variacion(totalVendido, totalAnterior),
         mostrarVariacion: true,
       ),
       KpiReporte(
         titulo: 'Ventas',
         valor: '$cantidadVentas',
-        subtitulo:
-            'Transacciones pagadas',
-        variacionPorcentual:
-            _variacion(
+        subtitulo: 'Transacciones pagadas',
+        variacionPorcentual: _variacion(
           cantidadVentas.toDouble(),
           cantidadVentasAnterior.toDouble(),
         ),
@@ -564,47 +446,35 @@ class ReportesEjecutivoSupabase {
       ),
       KpiReporte(
         titulo: 'Ticket promedio',
-        valor:
-            '\$${ticketPromedio.toStringAsFixed(2)}',
-        subtitulo:
-            'Promedio por venta',
-        variacionPorcentual:
-            _variacion(
-          ticketPromedio,
-          ticketPromedioAnterior,
-        ),
+        valor: '\$${ticketPromedio.toStringAsFixed(2)}',
+        subtitulo: 'Promedio por venta',
+        variacionPorcentual: _variacion(ticketPromedio, ticketPromedioAnterior),
         mostrarVariacion: true,
       ),
       KpiReporte(
         titulo: 'Productos vendidos',
         valor: '$productosVendidos',
-        subtitulo:
-            'Unidades registradas',
-        variacionPorcentual:
-            _variacion(
+        subtitulo: 'Unidades registradas',
+        variacionPorcentual: _variacion(
           productosVendidos.toDouble(),
-          productosVendidosAnterior
-              .toDouble(),
+          productosVendidosAnterior.toDouble(),
         ),
         mostrarVariacion: true,
       ),
       KpiReporte(
         titulo: 'Producto líder',
         valor: mejorProducto,
-        subtitulo:
-            'Mayor rotación por cantidad',
+        subtitulo: 'Mayor rotación por cantidad',
       ),
       KpiReporte(
         titulo: 'Hora fuerte',
         valor: horaFuerte,
-        subtitulo:
-            'Franja con mayor ingreso',
+        subtitulo: 'Franja con mayor ingreso',
       ),
       KpiReporte(
         titulo: 'Mejor vendedor',
         valor: mejorVendedor,
-        subtitulo:
-            'Mayor venta acumulada',
+        subtitulo: 'Mayor venta acumulada',
       ),
       KpiReporte(
         titulo: 'Barrio líder',
@@ -615,15 +485,12 @@ class ReportesEjecutivoSupabase {
       ),
       KpiReporte(
         titulo: 'Alertas críticas',
-        valor:
-            '${alertas.where((item) => item.nivel == 'Crítico').length}',
-        subtitulo:
-            'Stock en riesgo operativo',
+        valor: '${alertas.where((item) => item.nivel == 'Crítico').length}',
+        subtitulo: 'Stock en riesgo operativo',
       ),
     ];
 
-    final insights =
-        _construirInsights(
+    final insights = _construirInsights(
       totalVendido: totalVendido,
       totalAnterior: totalAnterior,
       cantidadVentas: cantidadVentas,
@@ -640,164 +507,95 @@ class ReportesEjecutivoSupabase {
     return ReporteEjecutivoData(
       fechaInicio: inicio,
       fechaFin: finBase,
-      fechaInicioAnterior:
-          inicioAnterior,
-      fechaFinAnterior:
-          finAnterior.subtract(
-        const Duration(days: 1),
-      ),
-      totalVendido:
-          totalVendido,
-      totalAnterior:
-          totalAnterior,
-      cantidadVentas:
-          cantidadVentas,
-      cantidadVentasAnterior:
-          cantidadVentasAnterior,
-      productosVendidos:
-          productosVendidos,
-      productosVendidosAnterior:
-          productosVendidosAnterior,
-      ticketPromedio:
-          ticketPromedio,
-      ticketPromedioAnterior:
-          ticketPromedioAnterior,
-      mejorProducto:
-          mejorProducto,
-      mejorVendedor:
-          mejorVendedor,
-      mejorBarrio:
-          mejorBarrio,
-      horaFuerte:
-          horaFuerte,
-      kpis:
-          kpis,
-      ventasPorDia:
-          ventasPorDia,
-      ventasPorHora:
-          ventasPorHora,
-      metodosPago:
-          metodosPago,
-      topProductosCantidad:
-          topCantidad.take(10).toList(),
-      topProductosIngresos:
-          topIngresos.take(10).toList(),
-      categorias:
-          categorias.take(8).toList(),
-      barrios:
-          barrios.take(10).toList(),
-      vendedores:
-          vendedores.take(8).toList(),
-      alertasStock:
-          alertas.take(14).toList(),
-      produccionesRecientes:
-          producciones,
-      insights:
-          insights,
+      fechaInicioAnterior: inicioAnterior,
+      fechaFinAnterior: finAnterior.subtract(const Duration(days: 1)),
+      totalVendido: totalVendido,
+      totalAnterior: totalAnterior,
+      cantidadVentas: cantidadVentas,
+      cantidadVentasAnterior: cantidadVentasAnterior,
+      productosVendidos: productosVendidos,
+      productosVendidosAnterior: productosVendidosAnterior,
+      ticketPromedio: ticketPromedio,
+      ticketPromedioAnterior: ticketPromedioAnterior,
+      mejorProducto: mejorProducto,
+      mejorVendedor: mejorVendedor,
+      mejorBarrio: mejorBarrio,
+      horaFuerte: horaFuerte,
+      kpis: kpis,
+      ventasPorDia: ventasPorDia,
+      ventasPorHora: ventasPorHora,
+      metodosPago: metodosPago,
+      topProductosCantidad: topCantidad.take(10).toList(),
+      topProductosIngresos: topIngresos.take(10).toList(),
+      categorias: categorias.take(8).toList(),
+      barrios: barrios.take(10).toList(),
+      vendedores: vendedores.take(8).toList(),
+      alertasStock: alertas.take(14).toList(),
+      produccionesRecientes: producciones,
+      insights: insights,
     );
   }
 
-  static List<Map<String, dynamic>>
-      _normalizarLista(
-    dynamic response,
-  ) {
+  static List<Map<String, dynamic>> _normalizarLista(dynamic response) {
     return (response as List)
         .map<Map<String, dynamic>>(
-          (item) =>
-              Map<String, dynamic>.from(
-            item as Map,
-          ),
+          (item) => Map<String, dynamic>.from(item as Map),
         )
         .toList();
   }
 
-  static double _sumarCampo(
-    List<Map<String, dynamic>> lista,
-    String campo,
-  ) {
+  static double _sumarCampo(List<Map<String, dynamic>> lista, String campo) {
     double total = 0;
 
     for (final item in lista) {
-      total +=
-          (item[campo] as num?)
-                  ?.toDouble() ??
-              0;
+      total += (item[campo] as num?)?.toDouble() ?? 0;
     }
 
     return total;
   }
 
-  static int _sumarCantidad(
-    List<Map<String, dynamic>> lista,
-  ) {
+  static int _sumarCantidad(List<Map<String, dynamic>> lista) {
     int total = 0;
 
     for (final item in lista) {
-      total +=
-          (item['cantidad'] as num?)
-                  ?.toInt() ??
-              0;
+      total += (item['cantidad'] as num?)?.toInt() ?? 0;
     }
 
     return total;
   }
 
-  static double _variacion(
-    double actual,
-    double anterior,
-  ) {
-    if (anterior == 0 &&
-        actual == 0) {
+  static double _variacion(double actual, double anterior) {
+    if (anterior == 0 && actual == 0) {
       return 0;
     }
 
-    if (anterior == 0 &&
-        actual > 0) {
+    if (anterior == 0 && actual > 0) {
       return 100;
     }
 
-    return ((actual - anterior) /
-            anterior) *
-        100;
+    return ((actual - anterior) / anterior) * 100;
   }
 
-  static List<SerieDiaReporte>
-      _construirVentasPorDia({
-    required List<Map<String, dynamic>>
-        ventas,
+  static List<SerieDiaReporte> _construirVentasPorDia({
+    required List<Map<String, dynamic>> ventas,
     required DateTime inicio,
     required int dias,
   }) {
-    final resultado =
-        <SerieDiaReporte>[];
+    final resultado = <SerieDiaReporte>[];
 
     for (int i = 0; i < dias; i++) {
-      final dia =
-          inicio.add(
-        Duration(days: i),
-      );
+      final dia = inicio.add(Duration(days: i));
 
-      final siguiente =
-          dia.add(
-        const Duration(days: 1),
-      );
+      final siguiente = dia.add(const Duration(days: 1));
 
       double total = 0;
       int cantidad = 0;
 
       for (final venta in ventas) {
-        final fecha =
-            DateTime.parse(
-          venta['created_at']
-              .toString(),
-        );
+        final fecha = DateTime.parse(venta['created_at'].toString());
 
-        if (!fecha.isBefore(dia) &&
-            fecha.isBefore(siguiente)) {
-          total +=
-              (venta['total'] as num?)
-                      ?.toDouble() ??
-                  0;
+        if (!fecha.isBefore(dia) && fecha.isBefore(siguiente)) {
+          total += (venta['total'] as num?)?.toDouble() ?? 0;
 
           cantidad++;
         }
@@ -805,14 +603,9 @@ class ReportesEjecutivoSupabase {
 
       resultado.add(
         SerieDiaReporte(
-          etiqueta: dias <= 10
-              ? _nombreDia(
-                  dia.weekday,
-                )
-              : _fechaCorta(dia),
+          etiqueta: dias <= 10 ? _nombreDia(dia.weekday) : _fechaCorta(dia),
           valor: total,
-          cantidadVentas:
-              cantidad,
+          cantidadVentas: cantidad,
         ),
       );
     }
@@ -820,716 +613,411 @@ class ReportesEjecutivoSupabase {
     return resultado;
   }
 
-  static List<SerieHoraReporte>
-      _construirVentasPorHora(
+  static List<SerieHoraReporte> _construirVentasPorHora(
     List<Map<String, dynamic>> ventas,
   ) {
-    final Map<int, double>
-        totalPorHora = {};
+    final Map<int, double> totalPorHora = {};
 
-    final Map<int, int>
-        ventasPorHora = {};
+    final Map<int, int> ventasPorHora = {};
 
-    for (int hora = 0;
-        hora < 24;
-        hora++) {
+    for (int hora = 0; hora < 24; hora++) {
       totalPorHora[hora] = 0;
       ventasPorHora[hora] = 0;
     }
 
     for (final venta in ventas) {
-      final fecha =
-          DateTime.parse(
-        venta['created_at']
-            .toString(),
-      );
+      final fecha = DateTime.parse(venta['created_at'].toString());
 
-      final total =
-          (venta['total'] as num?)
-                  ?.toDouble() ??
-              0;
+      final total = (venta['total'] as num?)?.toDouble() ?? 0;
 
-      totalPorHora[fecha.hour] =
-          (totalPorHora[fecha.hour] ??
-                  0) +
-              total;
+      totalPorHora[fecha.hour] = (totalPorHora[fecha.hour] ?? 0) + total;
 
-      ventasPorHora[fecha.hour] =
-          (ventasPorHora[fecha.hour] ??
-                  0) +
-              1;
+      ventasPorHora[fecha.hour] = (ventasPorHora[fecha.hour] ?? 0) + 1;
     }
 
-    final resultado =
-        totalPorHora.entries
-            .where(
-              (entry) =>
-                  entry.value > 0 ||
-                  (ventasPorHora[
-                              entry.key] ??
-                          0) >
-                      0,
-            )
-            .map(
-              (entry) =>
-                  SerieHoraReporte(
-                hora:
-                    '${entry.key.toString().padLeft(2, '0')}:00',
-                total:
-                    entry.value,
-                ventas:
-                    ventasPorHora[
-                            entry.key] ??
-                        0,
-              ),
-            )
-            .toList();
+    final resultado = totalPorHora.entries
+        .where(
+          (entry) => entry.value > 0 || (ventasPorHora[entry.key] ?? 0) > 0,
+        )
+        .map(
+          (entry) => SerieHoraReporte(
+            hora: '${entry.key.toString().padLeft(2, '0')}:00',
+            total: entry.value,
+            ventas: ventasPorHora[entry.key] ?? 0,
+          ),
+        )
+        .toList();
 
-    resultado.sort(
-      (a, b) =>
-          b.total.compareTo(a.total),
-    );
+    resultado.sort((a, b) => b.total.compareTo(a.total));
 
     return resultado;
   }
 
-  static List<MetodoPagoReporte>
-      _construirMetodosPago(
+  static List<MetodoPagoReporte> _construirMetodosPago(
     List<Map<String, dynamic>> ventas,
     double totalGeneral,
   ) {
-    final Map<String, double>
-        totales = {};
+    final Map<String, double> totales = {};
 
-    final Map<String, int>
-        cantidades = {};
+    final Map<String, int> cantidades = {};
 
     for (final venta in ventas) {
-      final metodo =
-          (venta['metodo_pago'] ??
-                  'sin método')
-              .toString();
+      final metodo = (venta['metodo_pago'] ?? 'sin método').toString();
 
-      final nombre =
-          _nombreMetodo(metodo);
+      final nombre = _nombreMetodo(metodo);
 
-      final total =
-          (venta['total'] as num?)
-                  ?.toDouble() ??
-              0;
+      final total = (venta['total'] as num?)?.toDouble() ?? 0;
 
-      totales[nombre] =
-          (totales[nombre] ?? 0) +
-              total;
+      totales[nombre] = (totales[nombre] ?? 0) + total;
 
-      cantidades[nombre] =
-          (cantidades[nombre] ?? 0) +
-              1;
+      cantidades[nombre] = (cantidades[nombre] ?? 0) + 1;
     }
 
-    final resultado =
-        totales.entries
-            .map(
-              (entry) =>
-                  MetodoPagoReporte(
-                metodo:
-                    entry.key,
-                total:
-                    entry.value,
-                cantidad:
-                    cantidades[
-                            entry.key] ??
-                        0,
-                porcentaje:
-                    totalGeneral == 0
-                        ? 0
-                        : (entry.value /
-                                totalGeneral) *
-                            100,
-              ),
-            )
-            .toList();
+    final resultado = totales.entries
+        .map(
+          (entry) => MetodoPagoReporte(
+            metodo: entry.key,
+            total: entry.value,
+            cantidad: cantidades[entry.key] ?? 0,
+            porcentaje: totalGeneral == 0
+                ? 0
+                : (entry.value / totalGeneral) * 100,
+          ),
+        )
+        .toList();
 
-    resultado.sort(
-      (a, b) =>
-          b.total.compareTo(a.total),
-    );
+    resultado.sort((a, b) => b.total.compareTo(a.total));
 
     return resultado;
   }
 
-  static List<TopProductoReporte>
-      _construirTopProductos(
-    List<Map<String, dynamic>>
-        detalles, {
+  static List<TopProductoReporte> _construirTopProductos(
+    List<Map<String, dynamic>> detalles, {
     required bool porCantidad,
   }) {
-    final Map<String, int>
-        cantidades = {};
+    final Map<String, int> cantidades = {};
 
-    final Map<String, double>
-        totales = {};
+    final Map<String, double> totales = {};
 
-    final Map<String, String>
-        categorias = {};
+    final Map<String, String> categorias = {};
 
     int cantidadGeneral = 0;
     double totalGeneral = 0;
 
     for (final detalle in detalles) {
-      final nombre =
-          (detalle['nombre_producto'] ??
-                  'Sin producto')
-              .toString();
+      final nombre = (detalle['nombre_producto'] ?? 'Sin producto').toString();
 
-      final categoria =
-          (detalle['categoria_producto'] ??
-                  'Sin categoría')
-              .toString();
+      final categoria = (detalle['categoria_producto'] ?? 'Sin categoría')
+          .toString();
 
-      final cantidad =
-          (detalle['cantidad'] as num?)
-                  ?.toInt() ??
-              0;
+      final cantidad = (detalle['cantidad'] as num?)?.toInt() ?? 0;
 
-      final subtotal =
-          (detalle['subtotal'] as num?)
-                  ?.toDouble() ??
-              0;
+      final subtotal = (detalle['subtotal'] as num?)?.toDouble() ?? 0;
 
-      cantidades[nombre] =
-          (cantidades[nombre] ?? 0) +
-              cantidad;
+      cantidades[nombre] = (cantidades[nombre] ?? 0) + cantidad;
 
-      totales[nombre] =
-          (totales[nombre] ?? 0) +
-              subtotal;
+      totales[nombre] = (totales[nombre] ?? 0) + subtotal;
 
-      categorias[nombre] =
-          categoria;
+      categorias[nombre] = categoria;
 
       cantidadGeneral += cantidad;
       totalGeneral += subtotal;
     }
 
-    final resultado =
-        cantidades.keys.map(
-      (nombre) {
-        final cantidad =
-            cantidades[nombre] ?? 0;
+    final resultado = cantidades.keys.map((nombre) {
+      final cantidad = cantidades[nombre] ?? 0;
 
-        final total =
-            totales[nombre] ?? 0;
+      final total = totales[nombre] ?? 0;
 
-        return TopProductoReporte(
-          nombre:
-              nombre,
-          categoria:
-              categorias[nombre] ??
-                  'Sin categoría',
-          cantidad:
-              cantidad,
-          total:
-              total,
-          porcentaje:
-              porCantidad
-                  ? cantidadGeneral == 0
-                      ? 0
-                      : (cantidad /
-                              cantidadGeneral) *
-                          100
-                  : totalGeneral == 0
-                      ? 0
-                      : (total /
-                              totalGeneral) *
-                          100,
-        );
-      },
-    ).toList();
+      return TopProductoReporte(
+        nombre: nombre,
+        categoria: categorias[nombre] ?? 'Sin categoría',
+        cantidad: cantidad,
+        total: total,
+        porcentaje: porCantidad
+            ? cantidadGeneral == 0
+                  ? 0
+                  : (cantidad / cantidadGeneral) * 100
+            : totalGeneral == 0
+            ? 0
+            : (total / totalGeneral) * 100,
+      );
+    }).toList();
 
     if (porCantidad) {
-      resultado.sort(
-        (a, b) =>
-            b.cantidad.compareTo(
-          a.cantidad,
-        ),
-      );
+      resultado.sort((a, b) => b.cantidad.compareTo(a.cantidad));
     } else {
-      resultado.sort(
-        (a, b) =>
-            b.total.compareTo(
-          a.total,
-        ),
-      );
+      resultado.sort((a, b) => b.total.compareTo(a.total));
     }
 
     return resultado;
   }
 
-  static List<CategoriaReporte>
-      _construirCategorias(
-    List<Map<String, dynamic>>
-        detalles,
+  static List<CategoriaReporte> _construirCategorias(
+    List<Map<String, dynamic>> detalles,
   ) {
-    final Map<String, int>
-        cantidades = {};
+    final Map<String, int> cantidades = {};
 
-    final Map<String, double>
-        totales = {};
+    final Map<String, double> totales = {};
 
     double totalGeneral = 0;
 
     for (final detalle in detalles) {
-      final categoria =
-          (detalle['categoria_producto'] ??
-                  'Sin categoría')
-              .toString();
+      final categoria = (detalle['categoria_producto'] ?? 'Sin categoría')
+          .toString();
 
-      final cantidad =
-          (detalle['cantidad'] as num?)
-                  ?.toInt() ??
-              0;
+      final cantidad = (detalle['cantidad'] as num?)?.toInt() ?? 0;
 
-      final subtotal =
-          (detalle['subtotal'] as num?)
-                  ?.toDouble() ??
-              0;
+      final subtotal = (detalle['subtotal'] as num?)?.toDouble() ?? 0;
 
-      cantidades[categoria] =
-          (cantidades[categoria] ?? 0) +
-              cantidad;
+      cantidades[categoria] = (cantidades[categoria] ?? 0) + cantidad;
 
-      totales[categoria] =
-          (totales[categoria] ?? 0) +
-              subtotal;
+      totales[categoria] = (totales[categoria] ?? 0) + subtotal;
 
       totalGeneral += subtotal;
     }
 
-    final resultado =
-        totales.keys.map(
-      (categoria) {
-        final total =
-            totales[categoria] ?? 0;
+    final resultado = totales.keys.map((categoria) {
+      final total = totales[categoria] ?? 0;
 
-        return CategoriaReporte(
-          categoria:
-              categoria,
-          cantidad:
-              cantidades[categoria] ??
-                  0,
-          total:
-              total,
-          porcentaje:
-              totalGeneral == 0
-                  ? 0
-                  : (total /
-                          totalGeneral) *
-                      100,
-        );
-      },
-    ).toList();
+      return CategoriaReporte(
+        categoria: categoria,
+        cantidad: cantidades[categoria] ?? 0,
+        total: total,
+        porcentaje: totalGeneral == 0 ? 0 : (total / totalGeneral) * 100,
+      );
+    }).toList();
 
-    resultado.sort(
-      (a, b) =>
-          b.total.compareTo(a.total),
-    );
+    resultado.sort((a, b) => b.total.compareTo(a.total));
 
     return resultado;
   }
 
-  static List<BarrioReporte>
-      _construirBarrios(
-    List<Map<String, dynamic>>
-        ventas,
+  static List<BarrioReporte> _construirBarrios(
+    List<Map<String, dynamic>> ventas,
   ) {
-    final Map<String, int>
-        cantidades = {};
+    final Map<String, int> cantidades = {};
 
-    final Map<String, double>
-        totales = {};
+    final Map<String, double> totales = {};
 
-    final Map<String, String>
-        nombresOriginales = {};
+    final Map<String, String> nombresOriginales = {};
 
     int cantidadGeneral = 0;
 
     for (final venta in ventas) {
-      final tipoPedido =
-          (venta['tipo_pedido'] ?? '')
-              .toString()
-              .trim()
-              .toLowerCase();
+      final tipoPedido = (venta['tipo_pedido'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
 
-      final barrio =
-          (venta['barrio'] ?? '')
-              .toString()
-              .trim();
+      final barrio = (venta['barrio'] ?? '').toString().trim();
 
-      if (tipoPedido != 'domicilio' ||
-          barrio.isEmpty) {
+      if (tipoPedido != 'domicilio' || barrio.isEmpty) {
         continue;
       }
 
-      final total =
-          (venta['total'] as num?)
-                  ?.toDouble() ??
-              0;
+      final total = (venta['total'] as num?)?.toDouble() ?? 0;
 
-      final clave =
-          barrio.toLowerCase();
+      final clave = barrio.toLowerCase();
 
-      nombresOriginales.putIfAbsent(
-        clave,
-        () => barrio,
-      );
+      nombresOriginales.putIfAbsent(clave, () => barrio);
 
-      cantidades[clave] =
-          (cantidades[clave] ?? 0) +
-              1;
+      cantidades[clave] = (cantidades[clave] ?? 0) + 1;
 
-      totales[clave] =
-          (totales[clave] ?? 0) +
-              total;
+      totales[clave] = (totales[clave] ?? 0) + total;
 
       cantidadGeneral++;
     }
 
-    final resultado =
-        cantidades.keys.map(
-      (clave) {
-        final cantidad =
-            cantidades[clave] ?? 0;
+    final resultado = cantidades.keys.map((clave) {
+      final cantidad = cantidades[clave] ?? 0;
 
-        final total =
-            totales[clave] ?? 0;
+      final total = totales[clave] ?? 0;
 
-        return BarrioReporte(
-          barrio:
-              nombresOriginales[clave] ??
-                  clave,
-          ventas:
-              cantidad,
-          total:
-              total,
-          porcentaje:
-              cantidadGeneral == 0
-                  ? 0
-                  : (cantidad /
-                          cantidadGeneral) *
-                      100,
-        );
-      },
-    ).toList();
+      return BarrioReporte(
+        barrio: nombresOriginales[clave] ?? clave,
+        ventas: cantidad,
+        total: total,
+        porcentaje: cantidadGeneral == 0
+            ? 0
+            : (cantidad / cantidadGeneral) * 100,
+      );
+    }).toList();
 
-    resultado.sort(
-      (a, b) {
-        final comparacionVentas =
-            b.ventas.compareTo(
-          a.ventas,
-        );
+    resultado.sort((a, b) {
+      final comparacionVentas = b.ventas.compareTo(a.ventas);
 
-        if (comparacionVentas != 0) {
-          return comparacionVentas;
-        }
+      if (comparacionVentas != 0) {
+        return comparacionVentas;
+      }
 
-        return b.total.compareTo(
-          a.total,
-        );
-      },
-    );
+      return b.total.compareTo(a.total);
+    });
 
     return resultado;
   }
 
-  static List<VendedorReporte>
-      _construirVendedores(
-    List<Map<String, dynamic>>
-        ventas,
+  static List<VendedorReporte> _construirVendedores(
+    List<Map<String, dynamic>> ventas,
   ) {
-    final Map<String, double>
-        totales = {};
+    final Map<String, double> totales = {};
 
-    final Map<String, int>
-        cantidades = {};
+    final Map<String, int> cantidades = {};
 
-    final Map<String, String>
-        usuarios = {};
+    final Map<String, String> usuarios = {};
 
     for (final venta in ventas) {
-      final usuario =
-          Map<String, dynamic>.from(
-        venta['usuario'] as Map? ?? {},
-      );
+      final usuario = Map<String, dynamic>.from(venta['usuario'] as Map? ?? {});
 
-      final nombre =
-          (usuario['nombre'] ??
-                  'Sin vendedor')
-              .toString();
+      final nombre = (usuario['nombre'] ?? 'Sin vendedor').toString();
 
-      final login =
-          (usuario['usuario'] ?? '')
-              .toString();
+      final login = (usuario['usuario'] ?? '').toString();
 
-      final total =
-          (venta['total'] as num?)
-                  ?.toDouble() ??
-              0;
+      final total = (venta['total'] as num?)?.toDouble() ?? 0;
 
-      totales[nombre] =
-          (totales[nombre] ?? 0) +
-              total;
+      totales[nombre] = (totales[nombre] ?? 0) + total;
 
-      cantidades[nombre] =
-          (cantidades[nombre] ?? 0) +
-              1;
+      cantidades[nombre] = (cantidades[nombre] ?? 0) + 1;
 
-      usuarios[nombre] =
-          login;
+      usuarios[nombre] = login;
     }
 
-    final resultado =
-        totales.keys.map(
-      (nombre) {
-        final ventasVendedor =
-            cantidades[nombre] ?? 0;
+    final resultado = totales.keys.map((nombre) {
+      final ventasVendedor = cantidades[nombre] ?? 0;
 
-        final total =
-            totales[nombre] ?? 0;
+      final total = totales[nombre] ?? 0;
 
-        return VendedorReporte(
-          nombre:
-              nombre,
-          usuario:
-              usuarios[nombre] ?? '',
-          ventas:
-              ventasVendedor,
-          total:
-              total,
-          ticketPromedio:
-              ventasVendedor == 0
-                  ? 0
-                  : total /
-                      ventasVendedor,
-        );
-      },
-    ).toList();
+      return VendedorReporte(
+        nombre: nombre,
+        usuario: usuarios[nombre] ?? '',
+        ventas: ventasVendedor,
+        total: total,
+        ticketPromedio: ventasVendedor == 0 ? 0 : total / ventasVendedor,
+      );
+    }).toList();
 
-    resultado.sort(
-      (a, b) =>
-          b.total.compareTo(a.total),
-    );
+    resultado.sort((a, b) => b.total.compareTo(a.total));
 
     return resultado;
   }
 
-  static List<AlertaStockReporte>
-      _construirAlertas({
-    required dynamic
-        ingredientesResponse,
-    required dynamic
-        productosResponse,
+  static List<AlertaStockReporte> _construirAlertas({
+    required dynamic ingredientesResponse,
+    required dynamic productosResponse,
   }) {
-    final alertas =
-        <AlertaStockReporte>[];
+    final alertas = <AlertaStockReporte>[];
 
-    for (final item
-        in ingredientesResponse) {
-      final mapa =
-          Map<String, dynamic>.from(
-        item as Map,
-      );
+    for (final item in ingredientesResponse) {
+      final mapa = Map<String, dynamic>.from(item as Map);
 
-      final nombre =
-          (mapa['nombre'] ?? '')
-              .toString();
+      final nombre = (mapa['nombre'] ?? '').toString();
 
-      final stockActual =
-          (mapa['stock_actual'] as num?)
-                  ?.toDouble() ??
-              0;
+      final stockActual = (mapa['stock_actual'] as num?)?.toDouble() ?? 0;
 
-      final stockMinimo =
-          (mapa['stock_minimo'] as num?)
-                  ?.toDouble() ??
-              0;
+      final stockMinimo = (mapa['stock_minimo'] as num?)?.toDouble() ?? 0;
 
-      final stockCritico =
-          (mapa['stock_critico'] as num?)
-                  ?.toDouble() ??
-              0;
+      final stockCritico = (mapa['stock_critico'] as num?)?.toDouble() ?? 0;
 
-      if (stockActual <=
-          stockCritico) {
+      if (stockActual <= stockCritico) {
         alertas.add(
           AlertaStockReporte(
-            nombre:
-                nombre,
-            tipo:
-                'Ingrediente',
-            nivel:
-                'Crítico',
-            stockActual:
-                stockActual,
-            stockMinimo:
-                stockMinimo,
-            stockCritico:
-                stockCritico,
+            nombre: nombre,
+            tipo: 'Ingrediente',
+            nivel: 'Crítico',
+            stockActual: stockActual,
+            stockMinimo: stockMinimo,
+            stockCritico: stockCritico,
           ),
         );
-      } else if (stockActual <=
-          stockMinimo) {
+      } else if (stockActual <= stockMinimo) {
         alertas.add(
           AlertaStockReporte(
-            nombre:
-                nombre,
-            tipo:
-                'Ingrediente',
-            nivel:
-                'Mínimo',
-            stockActual:
-                stockActual,
-            stockMinimo:
-                stockMinimo,
-            stockCritico:
-                stockCritico,
+            nombre: nombre,
+            tipo: 'Ingrediente',
+            nivel: 'Mínimo',
+            stockActual: stockActual,
+            stockMinimo: stockMinimo,
+            stockCritico: stockCritico,
           ),
         );
       }
     }
 
-    for (final item
-        in productosResponse) {
-      final mapa =
-          Map<String, dynamic>.from(
-        item as Map,
-      );
+    for (final item in productosResponse) {
+      final mapa = Map<String, dynamic>.from(item as Map);
 
-      final nombre =
-          (mapa['nombre'] ?? '')
-              .toString();
+      final nombre = (mapa['nombre'] ?? '').toString();
 
-      final stockActual =
-          (mapa['stock_actual'] as num?)
-                  ?.toDouble() ??
-              0;
+      final stockActual = (mapa['stock_actual'] as num?)?.toDouble() ?? 0;
 
-      final stockMinimo =
-          (mapa['stock_minimo'] as num?)
-                  ?.toDouble() ??
-              0;
+      final stockMinimo = (mapa['stock_minimo'] as num?)?.toDouble() ?? 0;
 
-      final stockCritico =
-          (mapa['stock_critico'] as num?)
-                  ?.toDouble() ??
-              0;
+      final stockCritico = (mapa['stock_critico'] as num?)?.toDouble() ?? 0;
 
-      if (stockActual <=
-          stockCritico) {
+      if (stockActual <= stockCritico) {
         alertas.add(
           AlertaStockReporte(
-            nombre:
-                nombre,
-            tipo:
-                'Producto',
-            nivel:
-                'Crítico',
-            stockActual:
-                stockActual,
-            stockMinimo:
-                stockMinimo,
-            stockCritico:
-                stockCritico,
+            nombre: nombre,
+            tipo: 'Producto',
+            nivel: 'Crítico',
+            stockActual: stockActual,
+            stockMinimo: stockMinimo,
+            stockCritico: stockCritico,
           ),
         );
-      } else if (stockActual <=
-          stockMinimo) {
+      } else if (stockActual <= stockMinimo) {
         alertas.add(
           AlertaStockReporte(
-            nombre:
-                nombre,
-            tipo:
-                'Producto',
-            nivel:
-                'Mínimo',
-            stockActual:
-                stockActual,
-            stockMinimo:
-                stockMinimo,
-            stockCritico:
-                stockCritico,
+            nombre: nombre,
+            tipo: 'Producto',
+            nivel: 'Mínimo',
+            stockActual: stockActual,
+            stockMinimo: stockMinimo,
+            stockCritico: stockCritico,
           ),
         );
       }
     }
 
-    alertas.sort(
-      (a, b) {
-        if (a.nivel == b.nivel) {
-          return a.nombre.compareTo(
-            b.nombre,
-          );
-        }
+    alertas.sort((a, b) {
+      if (a.nivel == b.nivel) {
+        return a.nombre.compareTo(b.nombre);
+      }
 
-        if (a.nivel == 'Crítico') {
-          return -1;
-        }
+      if (a.nivel == 'Crítico') {
+        return -1;
+      }
 
-        return 1;
-      },
-    );
+      return 1;
+    });
 
     return alertas;
   }
 
-  static List<ProduccionRecienteReporte>
-      _construirProducciones(
+  static List<ProduccionRecienteReporte> _construirProducciones(
     dynamic produccionesResponse,
   ) {
-    return (produccionesResponse as List)
-        .map<ProduccionRecienteReporte>(
-      (item) {
-        final mapa =
-            Map<String, dynamic>.from(
-          item as Map,
-        );
+    return (produccionesResponse as List).map<ProduccionRecienteReporte>((
+      item,
+    ) {
+      final mapa = Map<String, dynamic>.from(item as Map);
 
-        final producto =
-            Map<String, dynamic>.from(
-          mapa['producto'] as Map? ?? {},
-        );
+      final producto = Map<String, dynamic>.from(
+        mapa['producto'] as Map? ?? {},
+      );
 
-        final usuario =
-            Map<String, dynamic>.from(
-          mapa['usuario'] as Map? ?? {},
-        );
+      final usuario = Map<String, dynamic>.from(mapa['usuario'] as Map? ?? {});
 
-        return ProduccionRecienteReporte(
-          producto:
-              (producto['nombre'] ??
-                      'Sin producto')
-                  .toString(),
-          cantidad:
-              (mapa['cantidad_producida']
-                          as num?)
-                      ?.toDouble() ??
-                  0,
-          usuario:
-              (usuario['nombre'] ??
-                      'Sin usuario')
-                  .toString(),
-          fecha:
-              DateTime.parse(
-            mapa['created_at']
-                .toString(),
-          ),
-        );
-      },
-    ).toList();
+      return ProduccionRecienteReporte(
+        producto: (producto['nombre'] ?? 'Sin producto').toString(),
+        cantidad: (mapa['cantidad_producida'] as num?)?.toDouble() ?? 0,
+        usuario: (usuario['nombre'] ?? 'Sin usuario').toString(),
+        fecha: DateTime.parse(mapa['created_at'].toString()),
+      );
+    }).toList();
   }
 
-  static List<InsightReporte>
-      _construirInsights({
+  static List<InsightReporte> _construirInsights({
     required double totalVendido,
     required double totalAnterior,
     required int cantidadVentas,
@@ -1538,31 +1026,21 @@ class ReportesEjecutivoSupabase {
     required String mejorVendedor,
     required String mejorBarrio,
     required String horaFuerte,
-    required List<MetodoPagoReporte>
-        metodos,
-    required List<CategoriaReporte>
-        categorias,
-    required List<AlertaStockReporte>
-        alertas,
+    required List<MetodoPagoReporte> metodos,
+    required List<CategoriaReporte> categorias,
+    required List<AlertaStockReporte> alertas,
   }) {
-    final insights =
-        <InsightReporte>[];
+    final insights = <InsightReporte>[];
 
-    final variacion =
-        _variacion(
-      totalVendido,
-      totalAnterior,
-    );
+    final variacion = _variacion(totalVendido, totalAnterior);
 
     if (cantidadVentas == 0) {
       insights.add(
         const InsightReporte(
-          titulo:
-              'Sin ventas en el período',
+          titulo: 'Sin ventas en el período',
           descripcion:
               'No existen ventas pagadas para el rango seleccionado. Revisa si el rango de fechas es correcto o si las ventas fueron registradas con otro estado.',
-          tipo:
-              'advertencia',
+          tipo: 'advertencia',
         ),
       );
 
@@ -1572,58 +1050,48 @@ class ReportesEjecutivoSupabase {
     if (variacion > 10) {
       insights.add(
         InsightReporte(
-          titulo:
-              'Crecimiento positivo',
+          titulo: 'Crecimiento positivo',
           descripcion:
               'El negocio creció ${variacion.toStringAsFixed(1)}% frente al período anterior. Conviene revisar qué productos impulsaron ese resultado para repetir la estrategia.',
-          tipo:
-              'positivo',
+          tipo: 'positivo',
         ),
       );
     } else if (variacion < -10) {
       insights.add(
         InsightReporte(
-          titulo:
-              'Caída de ventas',
+          titulo: 'Caída de ventas',
           descripcion:
               'Las ventas bajaron ${variacion.abs().toStringAsFixed(1)}% frente al período anterior. Revisa horarios flojos, productos con baja rotación y disponibilidad de stock.',
-          tipo:
-              'riesgo',
+          tipo: 'riesgo',
         ),
       );
     } else {
       insights.add(
         const InsightReporte(
-          titulo:
-              'Ventas estables',
+          titulo: 'Ventas estables',
           descripcion:
               'El período se mantiene relativamente estable frente al anterior. La prioridad debe ser subir ticket promedio y mejorar productos de alta rotación.',
-          tipo:
-              'neutral',
+          tipo: 'neutral',
         ),
       );
     }
 
     insights.add(
       InsightReporte(
-        titulo:
-            'Producto ganador',
+        titulo: 'Producto ganador',
         descripcion:
             '$mejorProducto lidera la rotación. Debe mantenerse con stock suficiente y puede usarse como producto ancla para combos o promociones.',
-        tipo:
-            'positivo',
+        tipo: 'positivo',
       ),
     );
 
     if (metodos.isNotEmpty) {
       insights.add(
         InsightReporte(
-          titulo:
-              'Método de pago dominante',
+          titulo: 'Método de pago dominante',
           descripcion:
               '${metodos.first.metodo} concentra el ${metodos.first.porcentaje.toStringAsFixed(1)}% del ingreso. Esto ayuda a controlar caja, transferencias y datáfono con más precisión.',
-          tipo:
-              'neutral',
+          tipo: 'neutral',
         ),
       );
     }
@@ -1631,12 +1099,10 @@ class ReportesEjecutivoSupabase {
     if (categorias.isNotEmpty) {
       insights.add(
         InsightReporte(
-          titulo:
-              'Categoría más fuerte',
+          titulo: 'Categoría más fuerte',
           descripcion:
               '${categorias.first.categoria} representa el ${categorias.first.porcentaje.toStringAsFixed(1)}% del ingreso del período. Es la línea que más pesa en el resultado.',
-          tipo:
-              'positivo',
+          tipo: 'positivo',
         ),
       );
     }
@@ -1644,43 +1110,32 @@ class ReportesEjecutivoSupabase {
     if (mejorBarrio != 'Sin datos') {
       insights.add(
         InsightReporte(
-          titulo:
-              'Barrio con mayor demanda',
+          titulo: 'Barrio con mayor demanda',
           descripcion:
               '$mejorBarrio concentra la mayor cantidad de pedidos a domicilio del período. Conviene reforzar tiempos de entrega y cobertura en esa zona.',
-          tipo:
-              'positivo',
+          tipo: 'positivo',
         ),
       );
     }
 
     insights.add(
       InsightReporte(
-        titulo:
-            'Hora de mayor venta',
+        titulo: 'Hora de mayor venta',
         descripcion:
             'La franja más fuerte es $horaFuerte. Refuerza producción, mise en place y personal antes de esa hora para evitar pérdida de ventas.',
-        tipo:
-            'neutral',
+        tipo: 'neutral',
       ),
     );
 
-    final criticas = alertas
-        .where(
-          (item) =>
-              item.nivel == 'Crítico',
-        )
-        .length;
+    final criticas = alertas.where((item) => item.nivel == 'Crítico').length;
 
     if (criticas > 0) {
       insights.add(
         InsightReporte(
-          titulo:
-              'Riesgo de inventario',
+          titulo: 'Riesgo de inventario',
           descripcion:
               'Hay $criticas alerta(s) críticas de stock. Resolver esto debe ser prioridad porque puede afectar ventas de productos clave.',
-          tipo:
-              'riesgo',
+          tipo: 'riesgo',
         ),
       );
     }
@@ -1688,12 +1143,10 @@ class ReportesEjecutivoSupabase {
     if (ticketPromedio > 0) {
       insights.add(
         InsightReporte(
-          titulo:
-              'Ticket promedio',
+          titulo: 'Ticket promedio',
           descripcion:
               'El ticket promedio actual es \$${ticketPromedio.toStringAsFixed(2)}. Para subirlo, conviene empujar combos, bebidas y productos complementarios.',
-          tipo:
-              'neutral',
+          tipo: 'neutral',
         ),
       );
     }
@@ -1701,9 +1154,7 @@ class ReportesEjecutivoSupabase {
     return insights;
   }
 
-  static String _nombreMetodo(
-    String metodo,
-  ) {
+  static String _nombreMetodo(String metodo) {
     switch (metodo) {
       case 'efectivo':
         return 'Efectivo';
@@ -1718,15 +1169,11 @@ class ReportesEjecutivoSupabase {
         return 'Pago mixto';
 
       default:
-        return metodo.isEmpty
-            ? 'Sin método'
-            : metodo;
+        return metodo.isEmpty ? 'Sin método' : metodo;
     }
   }
 
-  static String _nombreDia(
-    int weekday,
-  ) {
+  static String _nombreDia(int weekday) {
     switch (weekday) {
       case DateTime.monday:
         return 'Lun';
@@ -1754,46 +1201,36 @@ class ReportesEjecutivoSupabase {
     }
   }
 
-  static String _fechaCorta(
-    DateTime fecha,
-  ) {
-    final dd = fecha.day
-        .toString()
-        .padLeft(2, '0');
+  static String _fechaCorta(DateTime fecha) {
+    final dd = fecha.day.toString().padLeft(2, '0');
 
-    final mm = fecha.month
-        .toString()
-        .padLeft(2, '0');
+    final mm = fecha.month.toString().padLeft(2, '0');
 
     return '$dd/$mm';
   }
 
-  static String _fechaSql(
-    DateTime fecha,
-  ) {
-    final yyyy = fecha.year
-        .toString()
-        .padLeft(4, '0');
+  static String _fechaDia(DateTime fecha) {
+    final yyyy = fecha.year.toString().padLeft(4, '0');
 
-    final mm = fecha.month
-        .toString()
-        .padLeft(2, '0');
+    final mm = fecha.month.toString().padLeft(2, '0');
 
-    final dd = fecha.day
-        .toString()
-        .padLeft(2, '0');
+    final dd = fecha.day.toString().padLeft(2, '0');
 
-    final hh = fecha.hour
-        .toString()
-        .padLeft(2, '0');
+    return '$yyyy-$mm-$dd';
+  }
 
-    final min = fecha.minute
-        .toString()
-        .padLeft(2, '0');
+  static String _fechaSql(DateTime fecha) {
+    final yyyy = fecha.year.toString().padLeft(4, '0');
 
-    final ss = fecha.second
-        .toString()
-        .padLeft(2, '0');
+    final mm = fecha.month.toString().padLeft(2, '0');
+
+    final dd = fecha.day.toString().padLeft(2, '0');
+
+    final hh = fecha.hour.toString().padLeft(2, '0');
+
+    final min = fecha.minute.toString().padLeft(2, '0');
+
+    final ss = fecha.second.toString().padLeft(2, '0');
 
     return '$yyyy-$mm-$dd $hh:$min:$ss';
   }

@@ -1,10 +1,6 @@
 import '../../../../nucleo/constantes/supabase_cliente.dart';
 
-enum TipoMovimientoInventario {
-  entrada,
-  salida,
-  ajuste,
-}
+enum TipoMovimientoInventario { entrada, salida, ajuste }
 
 class ItemInventario {
   final int id;
